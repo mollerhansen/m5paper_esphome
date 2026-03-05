@@ -1,0 +1,84 @@
+esphome:
+  name: stue-panel
+  friendly_name: Stue Panel
+  
+  platformio_options:
+    build_flags:
+      - -DBOARD_HAS_PSRAM
+      - -mfix-esp32-psram-cache-issue
+  
+  on_boot:
+    - priority: 600.0 
+      then:
+        - lambda: |-
+            // 1. TÆND FOR ALT STRØM PÅ BOARDET
+            pinMode(2, OUTPUT);
+            digitalWrite(2, HIGH); // Main Power ON
+            pinMode(5, OUTPUT);
+            digitalWrite(5, HIGH); // Battery/Peripheral Power ON
+            delay(500); // Vent på at strømmen stabiliseres
+
+            // 2. HÅRDT RESET AF SKÆRM OG TOUCH
+            pinMode(23, OUTPUT);
+            digitalWrite(23, LOW);
+            delay(50);
+            digitalWrite(23, HIGH);
+            delay(500);
+
+esp32:
+  board: m5stack_paper
+  framework:
+    type: arduino
+
+# Ingen display eller touch konfiguration her - KUN DIAGNOSE
+# external_components: ... 
+
+logger:
+  level: INFO
+
+api:
+  id: ha_api
+  encryption:
+    key: "N2YxMzRhYzY4YjVkMzU1ZTQ5Mzg3MmExOTI4MzY0ZGU="
+
+ota:
+  platform: esphome
+  password: "HansenHansen"
+
+wifi:
+  ssid: "Yellow Submarine"
+  password: "Hansen28102017"
+  power_save_mode: NONE 
+
+psram:
+
+# --- I2C BUS ---
+i2c:
+  id: bus_a
+  sda: GPIO21
+  scl: GPIO22
+  frequency: 10kHz # Ultra langsomt og stabilt
+  scan: false      # Vi gør det manuelt herunder
+
+# --- RADAR SCANNER ---
+interval:
+  - interval: 5s
+    then:
+      - lambda: |-
+          ESP_LOGI("scanner", "--- STARTER I2C SCANNING ---");
+          bool found_any = false;
+          
+          // Scan alle adresser fra 1 til 127
+          for (uint8_t address = 1; address < 127; address++) {
+            // Vi sender en "tom" besked. Hvis enheden svarer med ACK, findes den.
+            if (id(bus_a).write(address, nullptr, 0) == i2c::ERROR_OK) {
+              ESP_LOGI("scanner", ">>> FUNDET ENHED PÅ ADRESSE: 0x%02X <<<", address);
+              found_any = true;
+            }
+          }
+          
+          if (!found_any) {
+            ESP_LOGI("scanner", "Ingen enheder fundet (Bussen er tom/død)");
+          } else {
+            ESP_LOGI("scanner", "--- SCANNING SLUT (Succes!) ---");
+          }

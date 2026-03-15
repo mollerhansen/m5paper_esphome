@@ -12,7 +12,7 @@ CONF_I2C_ADDR = 0x5D
 CONF_INTERRUPT_PIN = "interrupt_pin"
 
 gt911 = cg.esphome_ns.namespace('gt911')
-GT911 = gt911.class_('GT911', touchscreen.Touchscreen, cg.Component, i2c.I2CDevice)
+GT911 = gt911.class_('GT911', touchscreen.Touchscreen, i2c.I2CDevice)
 
 CONFIG_SCHEMA = touchscreen.TOUCHSCREEN_SCHEMA.extend({
     cv.GenerateID(): cv.declare_id(GT911),
@@ -23,7 +23,6 @@ CONFIG_SCHEMA = touchscreen.TOUCHSCREEN_SCHEMA.extend({
 
 async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
-    await cg.register_component(var, config)
     await i2c.register_i2c_device(var, config)
     await touchscreen.register_touchscreen(var, config)
 

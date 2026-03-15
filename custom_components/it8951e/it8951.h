@@ -1,5 +1,4 @@
-#ifndef _IT8951_DEFINES_H_
-#define _IT8951_DEFINES_H_
+#pragma once
 
 /*-----------------------------------------------------------------------
 IT8951 Command defines
@@ -30,7 +29,6 @@ IT8951 Command defines
 /*-----------------------------------------------------------------------
  IT8951 Mode defines
 ------------------------------------------------------------------------*/
-
 //Pixel mode (Bit per Pixel)
 #define IT8951_2BPP             0
 #define IT8951_3BPP             1
@@ -73,5 +71,3 @@ IT8951 Registers defines
 #define IT8951_MCSR_BASE_ADDR       0x0200
 #define IT8951_MCSR                 (IT8951_MCSR_BASE_ADDR + 0x0000)
 #define IT8951_LISAR                (IT8951_MCSR_BASE_ADDR + 0x0008)
-
-#endif

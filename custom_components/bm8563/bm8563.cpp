@@ -30,7 +30,7 @@ void BM8563::dump_config(){
 }
 
 void BM8563::set_sleep_duration(uint32_t time_s) {
-  ESP_LOGE(TAG, "Sleep Duration Setting to: %u ms", time_s);
+  ESP_LOGI(TAG, "Sleep Duration Setting to: %u ms", time_s);
   this->sleep_duration_ = time_s;
 }
 
@@ -71,13 +71,13 @@ void BM8563::read_time() {
   BM8563_DateTypeDef BM8563_DateStruct;
   getTime(&BM8563_TimeStruct);
   getDate(&BM8563_DateStruct);
-  ESP_LOGE(TAG, "BM8563: %i-%i-%i %i, %i:%i:%i", 
+  ESP_LOGD(TAG, "BM8563: %i-%i-%i %i, %i:%i:%i",
     BM8563_DateStruct.year,
     BM8563_DateStruct.month,
     BM8563_DateStruct.day,
     BM8563_DateStruct.week,
-    BM8563_TimeStruct.hours, 
-    BM8563_TimeStruct.minutes, 
+    BM8563_TimeStruct.hours,
+    BM8563_TimeStruct.minutes,
     BM8563_TimeStruct.seconds
   );
 
@@ -88,7 +88,9 @@ void BM8563::read_time() {
                          .day_of_month = uint8_t(BM8563_DateStruct.day),
                          .day_of_year = 1,  // ignored by recalc_timestamp_utc(false)
                          .month = uint8_t(BM8563_DateStruct.month),
-                         .year = uint16_t(BM8563_DateStruct.year)
+                         .year = uint16_t(BM8563_DateStruct.year),
+                         .is_dst = false,  // ignored by recalc_timestamp_utc()
+                         .timestamp = 0  // result
                          };
   rtc_time.recalc_timestamp_utc(false);
   time::RealTimeClock::synchronize_epoch_(rtc_time.timestamp);
@@ -131,8 +133,8 @@ void BM8563::setTime(BM8563_TimeTypeDef* BM8563_TimeStruct) {
     return;
   }
   uint8_t buf[3] = {
-    byteToBcd2(BM8563_TimeStruct->seconds), 
-    byteToBcd2(BM8563_TimeStruct->minutes), 
+    byteToBcd2(BM8563_TimeStruct->seconds),
+    byteToBcd2(BM8563_TimeStruct->minutes),
     byteToBcd2(BM8563_TimeStruct->hours)
   };
 
@@ -141,14 +143,14 @@ void BM8563::setTime(BM8563_TimeTypeDef* BM8563_TimeStruct) {
 
 void BM8563::getDate(BM8563_DateTypeDef* BM8563_DateStruct) {
   uint8_t buf[4] = {0};
-  this->read_register(0x05, buf, 5);
+  this->read_register(0x05, buf, sizeof(buf));
 
   BM8563_DateStruct->day    = bcd2ToByte(buf[0] & 0x3f);
   BM8563_DateStruct->week = bcd2ToByte(buf[1] & 0x07);
   BM8563_DateStruct->month   = bcd2ToByte(buf[2] & 0x1f);
 
   uint8_t year_byte = bcd2ToByte(buf[3] & 0xff);
-  ESP_LOGE(TAG, "Year byte is %i", year_byte);
+  ESP_LOGD(TAG, "Year byte is %i", year_byte);
   if (buf[2] & 0x80) {
     BM8563_DateStruct->year = 1900 + year_byte;
   } else {
@@ -161,9 +163,9 @@ void BM8563::setDate(BM8563_DateTypeDef* BM8563_DateStruct) {
     return;
   }
   uint8_t buf[4] = {
-    byteToBcd2(BM8563_DateStruct->day), 
+    byteToBcd2(BM8563_DateStruct->day),
     byteToBcd2(BM8563_DateStruct->week),
-    byteToBcd2(BM8563_DateStruct->month), 
+    byteToBcd2(BM8563_DateStruct->month),
     byteToBcd2((uint8_t)(BM8563_DateStruct->year % 100)),
   };
 
@@ -174,7 +176,7 @@ void BM8563::setDate(BM8563_DateTypeDef* BM8563_DateStruct) {
     buf[2] = byteToBcd2(BM8563_DateStruct->month) | 0x00;
   }
 
-  ESP_LOGE(TAG, "WRiting year is %i", buf[3]);
+  ESP_LOGI(TAG, "Writing year is %i", buf[3]);
   this->write_register(0x05, buf, 4);
 }
 
@@ -189,7 +191,7 @@ uint8_t BM8563::ReadReg(uint8_t reg) {
 }
 
 int BM8563::SetAlarmIRQ(int afterSeconds) {
-  ESP_LOGE(TAG, "Sleep Duration: %u ms", afterSeconds);
+  ESP_LOGI(TAG, "Sleep Duration: %u ms", afterSeconds);
   uint8_t reg_value = 0;
   reg_value = ReadReg(0x01);
 

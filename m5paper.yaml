@@ -6,35 +6,28 @@ esphome:
     build_flags:
       - -DBOARD_HAS_PSRAM
       - -mfix-esp32-psram-cache-issue
-  
-  on_boot:
-    - priority: 600.0 
-      then:
-        - lambda: |-
-            // 1. TÆND FOR ALT STRØM PÅ BOARDET
-            pinMode(2, OUTPUT);
-            digitalWrite(2, HIGH); // Main Power ON
-            pinMode(5, OUTPUT);
-            digitalWrite(5, HIGH); // Battery/Peripheral Power ON
-            delay(500); // Vent på at strømmen stabiliseres
 
-            // 2. HÅRDT RESET AF SKÆRM OG TOUCH
-            pinMode(23, OUTPUT);
-            digitalWrite(23, LOW);
-            delay(50);
-            digitalWrite(23, HIGH);
-            delay(500);
+  on_boot:
+    - priority: -100.0 
+      then:
+        - delay: 2s
+        # 1. FIX: Rens skærmen helt (blinker sort/hvid) før vi tegner, så det bliver knivskarpt!
+        - it8951e.clear: m5paper_display
+        - delay: 500ms
+        - component.update: m5paper_display
 
 esp32:
   board: m5stack_paper
   framework:
     type: arduino
 
-# Ingen display eller touch konfiguration her - KUN DIAGNOSE
-# external_components: ... 
+external_components:
+  - source: custom_components 
 
 logger:
   level: INFO
+  logs:
+    i2c_master: NONE 
 
 api:
   id: ha_api
@@ -50,6 +43,12 @@ wifi:
   password: "Hansen28102017"
   power_save_mode: NONE 
 
+globals:
+  - id: use_24h_format
+    type: bool
+    restore_value: no
+    initial_value: 'true'
+
 psram:
 
 # --- I2C BUS ---
@@ -57,28 +56,84 @@ i2c:
   id: bus_a
   sda: GPIO21
   scl: GPIO22
-  frequency: 10kHz # Ultra langsomt og stabilt
-  scan: false      # Vi gør det manuelt herunder
+  frequency: 100kHz
+  scan: false
 
-# --- RADAR SCANNER ---
-interval:
-  - interval: 5s
+# --- SPI BUS ---
+spi:
+  clk_pin: GPIO14
+  mosi_pin: GPIO12
+  miso_pin: GPIO13
+
+# --- FONTS ---
+font:
+  - file: "FreeSans.ttf"
+    id: font_small
+    size: 16
+  - file: "FreeSans.ttf"
+    id: font_large
+    size: 48
+
+# --- TIME ---
+time:
+  - platform: homeassistant
+    id: ha_time
+    on_time_sync: 
+      - bm8563.write_time
+  - platform: bm8563
+    id: rtc_time
+
+# --- SENSORS ---
+sensor:
+  - platform: uptime
+    name: "Panel Uptime"
+
+# --- M5PAPER STRØMSTYRING ---
+m5paper:
+  main_power_pin: GPIO2
+  battery_power_pin: GPIO5
+
+# --- DISPLAY ---
+display:
+  - platform: it8951e
+    id: m5paper_display
+    cs_pin: GPIO15
+    reset_pin: GPIO23
+    busy_pin: GPIO27
+    rotation: 90
+    update_interval: never
+    lambda: |-
+      // Vi bruger standard-variabler for at sikre kridhvid og kulsort!
+      it.fill(COLOR_OFF); 
+      auto time = id(rtc_time).now();
+      
+      if (id(use_24h_format)) {
+        it.strftime(270, 270, id(font_large), COLOR_ON, TextAlign::CENTER, "%H:%M", time);
+        it.print(270, 350, id(font_small), COLOR_ON, TextAlign::CENTER, "24h Format");
+      } else {
+        it.strftime(270, 270, id(font_large), COLOR_ON, TextAlign::CENTER, "%I:%M %p", time);
+        it.print(270, 350, id(font_small), COLOR_ON, TextAlign::CENTER, "AM/PM Format");
+      }
+      it.print(270, 500, id(font_small), COLOR_ON, TextAlign::CENTER, "Touch to toggle");
+
+# --- SCRIPTS (Sikrer at vi ikke dobbelt-klikker) ---
+script:
+  - id: debounce_touch
+    mode: single # Ignorerer alle nye tryk, indtil scriptet er færdigt
     then:
       - lambda: |-
-          ESP_LOGI("scanner", "--- STARTER I2C SCANNING ---");
-          bool found_any = false;
-          
-          // Scan alle adresser fra 1 til 127
-          for (uint8_t address = 1; address < 127; address++) {
-            // Vi sender en "tom" besked. Hvis enheden svarer med ACK, findes den.
-            if (id(bus_a).write(address, nullptr, 0) == i2c::ERROR_OK) {
-              ESP_LOGI("scanner", ">>> FUNDET ENHED PÅ ADRESSE: 0x%02X <<<", address);
-              found_any = true;
-            }
-          }
-          
-          if (!found_any) {
-            ESP_LOGI("scanner", "Ingen enheder fundet (Bussen er tom/død)");
-          } else {
-            ESP_LOGI("scanner", "--- SCANNING SLUT (Succes!) ---");
-          }
+          ESP_LOGI("touch", ">>> Format skiftet! <<<");
+          id(use_24h_format) = !id(use_24h_format);
+      - component.update: m5paper_display
+      - delay: 1s # 1 sekunds cooldown før den lytter efter tryk igen
+
+# --- TOUCHSCREEN ---
+touchscreen:
+  - platform: gt911
+    display: m5paper_display
+    id: gt911_touchscreen
+    address: 0x5D
+    interrupt_pin: GPIO36
+    update_interval: 50ms 
+    on_touch:
+      - script.execute: debounce_touch

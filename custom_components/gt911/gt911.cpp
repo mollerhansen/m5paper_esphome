@@ -1,7 +1,6 @@
 #include "esphome/core/log.h"
 #include "esphome/components/i2c/i2c_bus.h"
 #include "gt911.h"
-#include <Wire.h>
 
 namespace esphome {
 namespace gt911 {
@@ -17,7 +16,6 @@ void GT911::setup(){
 
   if (this->write(nullptr, 0) != i2c::ERROR_OK) {
     ESP_LOGE(TAG, "Failed to communicate!");
-    this->interrupt_pin_->detach_interrupt();
     this->mark_failed();
     return;
   }
@@ -25,11 +23,14 @@ void GT911::setup(){
   this->store_.pin = this->interrupt_pin_->to_isr();
   this->interrupt_pin_->attach_interrupt(GT911TouchscreenStore::gpio_intr, &this->store_,
                                           gpio::INTERRUPT_FALLING_EDGE);
+                                          
+  // Default ranges for M5Paper
+  this->x_raw_max_ = 960;
+  this->y_raw_max_ = 540;
 }
 
-void GT911::loop(){
-  const bool touched = this->store_.touch;
-  if (!touched)
+void GT911::update_touches(){
+  if (!this->store_.touch)
     return;
 
   this->store_.touch = false;
@@ -38,57 +39,27 @@ void GT911::loop(){
   uint8_t touches = pointInfo & 0x0F;
 
   if (touches == 0) {
-    for (auto *listener : this->touch_listeners_) {
-      listener->release();
-    }
     this->writeByteData(GT911_POINT_INFO, 0);
     return;
   }
 
-  bool isTouched = touches > 0;
   if (pointInfo & 0x80) {
-    if (isTouched) {
-      TouchPoint tp;
-      uint8_t data[touches * 8] = {0};
-      if (!this->readBlockData(data, 0x8150, touches * 8)) {
-        ESP_LOGE(TAG, "Failed to read block data");
-        return;
-      }
-
+    uint8_t data[touches * 8];
+    if (this->readBlockData(data, 0x8150, touches * 8)) {
       for (int i = 0; i < touches; i++) {
         uint8_t *buf = data + i * 8;
-
-        uint16_t dimension_one = (buf[3] << 8) | buf[2];
-        uint16_t dimension_two = (buf[1] << 8) | buf[0];
-
-        switch (this->rotation_){
-          case ROTATE_0_DEGREES:
-            tp.x = dimension_one;
-            tp.y = this->display_height_ - dimension_two;
-            break;
-          case ROTATE_180_DEGREES:
-            tp.x = this->display_width_ - dimension_one;
-            tp.y = dimension_two;
-            break;
-          case ROTATE_270_DEGREES:
-            tp.x = dimension_two;
-            tp.y = dimension_one;
-            break;
-          case ROTATE_90_DEGREES:
-            tp.x = this->display_height_ - dimension_two;
-            tp.y = this->display_width_ - dimension_one;
-            break;
-          default:
-            break;
-        }
-        ESP_LOGE(TAG, "TOUCH %i, X: %i Y:%i ONE %i, TWO %i, ROT: %i", i, tp.x, tp.y, dimension_one, dimension_two, this->rotation_);
-
-        this->defer([this, tp]() { this->send_touch_(tp); });
-
+        // GT911 typically has X in 0-1 and Y in 2-3
+        // dimension_one = (buf[3] << 8) | buf[2]; // Y
+        // dimension_two = (buf[1] << 8) | buf[0]; // X
+        uint16_t x = (buf[1] << 8) | buf[0];
+        uint16_t y = (buf[3] << 8) | buf[2];
+        
+        this->add_raw_touch_position_(i, x, y);
       }
+      this->send_touches_();
     }
+    this->writeByteData(GT911_POINT_INFO, 0);
   }
-  this->writeByteData(GT911_POINT_INFO, 0);
 }
 
 void GT911::dump_config(){
@@ -120,29 +91,39 @@ void GT911::setResolution(uint16_t _width, uint16_t _height) {
 }
 
 void GT911::writeByteData(uint16_t reg, uint8_t val) {
-  this->write_byte_16(highByte(reg), lowByte(reg) << 8 | val);
+  uint8_t buffer[3];
+  buffer[0] = highByte(reg);
+  buffer[1] = lowByte(reg);
+  buffer[2] = val;
+  this->write(buffer, 3);
 }
 
 uint8_t GT911::readByteData(uint16_t reg) {
-  uint8_t x;
-  this->write_byte(highByte(reg), lowByte(reg));
+  uint8_t buffer[2];
+  buffer[0] = highByte(reg);
+  buffer[1] = lowByte(reg);
+  this->write(buffer, 2);
   uint8_t data;
   this->read(&data, 1);
   return data;
 }
 
 void GT911::writeBlockData(uint16_t reg, uint8_t *val, uint8_t size) {
-  this->write((uint8_t*)&reg, 2);
-  this->write(val, size);
+  uint8_t buffer[size + 2];
+  buffer[0] = highByte(reg);
+  buffer[1] = lowByte(reg);
+  memcpy(&buffer[2], val, size);
+  this->write(buffer, size + 2);
 }
 
 bool GT911::readBlockData(uint8_t *buf, uint16_t reg, uint8_t size) {
-  esphome::i2c::ErrorCode e;
-  if(!this->write_byte(highByte(reg), lowByte(reg))){
+  uint8_t buffer[2];
+  buffer[0] = highByte(reg);
+  buffer[1] = lowByte(reg);
+  if (this->write(buffer, 2) != i2c::ERROR_OK) {
     return false;
   }
-  e = this->read(buf, size);
-  return e == esphome::i2c::ERROR_OK;
+  return this->read(buf, size) == i2c::ERROR_OK;
 }
 
 }  // namespace gt911

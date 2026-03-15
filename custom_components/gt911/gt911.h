@@ -148,15 +148,15 @@ struct GT911TouchscreenStore {
   static void gpio_intr(GT911TouchscreenStore *store);
 };
 
-class GT911 : public Touchscreen, public Component, public i2c::I2CDevice {
+class GT911 : public Touchscreen, public i2c::I2CDevice {
   public:
     void setup() override;
-    void loop() override;
     void dump_config() override;
 
     void set_interrupt_pin(InternalGPIOPin *pin) { this->interrupt_pin_ = pin; }
 
   protected:
+    void update_touches() override;
     InternalGPIOPin *interrupt_pin_;
     GT911TouchscreenStore store_;
 

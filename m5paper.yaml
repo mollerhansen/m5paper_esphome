@@ -11,9 +11,8 @@ esphome:
     - priority: -100.0 
       then:
         - delay: 2s
-        # 1. FIX: Rens skærmen helt (blinker sort/hvid) før vi tegner, så det bliver knivskarpt!
         - it8951e.clear: m5paper_display
-        - delay: 500ms
+        - display.page.show: page_main
         - component.update: m5paper_display
 
 esp32:
@@ -26,8 +25,6 @@ external_components:
 
 logger:
   level: INFO
-  logs:
-    i2c_master: NONE 
 
 api:
   id: ha_api
@@ -35,31 +32,18 @@ api:
     key: "N2YxMzRhYzY4YjVkMzU1ZTQ5Mzg3MmExOTI4MzY0ZGU="
 
 ota:
-  platform: esphome
-  password: "HansenHansen"
+  - platform: esphome
 
 wifi:
   ssid: "Yellow Submarine"
   password: "Hansen28102017"
-  power_save_mode: NONE 
-
-globals:
-  - id: use_24h_format
-    type: bool
-    restore_value: no
-    initial_value: 'true'
 
 psram:
 
-# --- I2C BUS ---
 i2c:
-  id: bus_a
   sda: GPIO21
   scl: GPIO22
-  frequency: 100kHz
-  scan: false
 
-# --- SPI BUS ---
 spi:
   clk_pin: GPIO14
   mosi_pin: GPIO12
@@ -69,71 +53,240 @@ spi:
 font:
   - file: "FreeSans.ttf"
     id: font_small
-    size: 16
+    size: 26
+    glyphs: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ 0123456789.,:;!?-+/()[]{}<>%&@#_æøåÆØÅ°"
+  
+  - file: "gfonts://Noto Emoji"
+    id: font_emoji_small
+    size: 26
+    glyphs: "👕🧺🫧💧🔒🔓🚪"
+
+  - file: "gfonts://Noto Emoji"
+    id: font_emoji_medium
+    size: 48
+    glyphs: "🛋🛏🏡📅"
+
+  - file: "FreeSans.ttf"
+    id: font_medium
+    size: 48
+    glyphs: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ 0123456789.,:;!?-+/()[]{}<>%&@#_æøåÆØÅ°"
+
   - file: "FreeSans.ttf"
     id: font_large
-    size: 48
+    size: 80
+    glyphs: "0123456789.,:;!?-°C "
 
-# --- TIME ---
+  - file: "gfonts://Noto Emoji"
+    id: font_icon
+    size: 55
+    glyphs: "☀☁⛅🌧🌨🌩🌙🌫"
+
 time:
   - platform: homeassistant
     id: ha_time
-    on_time_sync: 
-      - bm8563.write_time
-  - platform: bm8563
-    id: rtc_time
 
-# --- SENSORS ---
 sensor:
-  - platform: uptime
-    name: "Panel Uptime"
+  - platform: homeassistant
+    entity_id: sensor.bedroom_temperature
+    id: temp_1st_sal
+  - platform: homeassistant
+    entity_id: climate.stuen_radiators
+    attribute: current_temperature
+    id: temp_stuen
+  - platform: homeassistant
+    entity_id: weather.forecast_home
+    attribute: temperature
+    id: temp_outdoor
+  - platform: homeassistant
+    entity_id: sensor.weather_temp_1h
+    id: temp_1h
+  - platform: homeassistant
+    entity_id: sensor.weather_temp_2h
+    id: temp_2h
+  - platform: homeassistant
+    entity_id: sensor.weather_temp_3h
+    id: temp_3h
 
-# --- M5PAPER STRØMSTYRING ---
+text_sensor:
+  - platform: homeassistant
+    entity_id: weather.forecast_home
+    id: weather_condition
+  - platform: homeassistant
+    entity_id: sensor.weather_icon_1h
+    id: icon_1h
+  - platform: homeassistant
+    entity_id: sensor.weather_icon_2h
+    id: icon_2h
+  - platform: homeassistant
+    entity_id: sensor.weather_icon_3h
+    id: icon_3h
+  - platform: homeassistant
+    entity_id: input_text.m5paper_status_icon
+    id: status_icon
+  - platform: homeassistant
+    entity_id: input_text.m5paper_status_text
+    id: status_text
+  - platform: homeassistant
+    entity_id: input_text.m5paper_cal_today
+    id: cal_today
+  - platform: homeassistant
+    entity_id: input_text.m5paper_cal_week
+    id: cal_week
+
 m5paper:
   main_power_pin: GPIO2
   battery_power_pin: GPIO5
 
-# --- DISPLAY ---
+binary_sensor:
+  - platform: gpio
+    id: rocker_up
+    pin: {number: GPIO37, inverted: true}
+    on_press:
+      - display.page.show_previous: m5paper_display
+      - component.update: m5paper_display
+  - platform: gpio
+    id: rocker_down
+    pin: {number: GPIO39, inverted: true}
+    on_press:
+      - display.page.show_next: m5paper_display
+      - component.update: m5paper_display
+  - platform: gpio
+    id: rocker_center
+    pin: {number: GPIO38, inverted: true}
+    on_press:
+      - display.page.show: page_main
+      - it8951e.clear: m5paper_display
+      - component.update: m5paper_display
+
 display:
   - platform: it8951e
     id: m5paper_display
     cs_pin: GPIO15
     reset_pin: GPIO23
     busy_pin: GPIO27
-    rotation: 90
+    rotation: 270
     update_interval: never
-    lambda: |-
-      // Vi bruger standard-variabler for at sikre kridhvid og kulsort!
-      it.fill(COLOR_OFF); 
-      auto time = id(rtc_time).now();
+    pages:
       
-      if (id(use_24h_format)) {
-        it.strftime(270, 270, id(font_large), COLOR_ON, TextAlign::CENTER, "%H:%M", time);
-        it.print(270, 350, id(font_small), COLOR_ON, TextAlign::CENTER, "24h Format");
-      } else {
-        it.strftime(270, 270, id(font_large), COLOR_ON, TextAlign::CENTER, "%I:%M %p", time);
-        it.print(270, 350, id(font_small), COLOR_ON, TextAlign::CENTER, "AM/PM Format");
-      }
-      it.print(270, 500, id(font_small), COLOR_ON, TextAlign::CENTER, "Touch to toggle");
+      # --- SIDE 1: 1. SAL ---
+      - id: page_1st_sal
+        lambda: |-
+          it.fill(COLOR_OFF);
+          
+          // FÆLLES HEADER
+          if (id(status_icon).has_state() && id(status_icon).state != "unknown") 
+            it.print(10, 15, id(font_emoji_small), COLOR_ON, TextAlign::TOP_LEFT, id(status_icon).state.c_str());
+          std::string s_text = (id(status_text).has_state() && id(status_text).state != "unknown") ? id(status_text).state : "Klar";
+          it.print(50, 15, id(font_small), COLOR_ON, TextAlign::TOP_LEFT, s_text.c_str());
+          it.strftime(530, 15, id(font_small), COLOR_ON, TextAlign::TOP_RIGHT, "%d. %b  %H:%M", id(ha_time).now());
+          it.line(0, 60, 540, 60);
 
-# --- SCRIPTS (Sikrer at vi ikke dobbelt-klikker) ---
-script:
-  - id: debounce_touch
-    mode: single # Ignorerer alle nye tryk, indtil scriptet er færdigt
+          it.print(270, 120, id(font_emoji_medium), COLOR_ON, TextAlign::CENTER, "🛏");
+          it.print(270, 190, id(font_medium), COLOR_ON, TextAlign::CENTER, "1. SAL");
+          if (id(temp_1st_sal).has_state()) it.printf(270, 290, id(font_large), COLOR_ON, TextAlign::CENTER, "%.1f °C", id(temp_1st_sal).state);
+
+      # --- SIDE 2: STUEN ---
+      - id: page_stuen
+        lambda: |-
+          it.fill(COLOR_OFF);
+          
+          // FÆLLES HEADER
+          if (id(status_icon).has_state() && id(status_icon).state != "unknown") 
+            it.print(10, 15, id(font_emoji_small), COLOR_ON, TextAlign::TOP_LEFT, id(status_icon).state.c_str());
+          std::string s_text = (id(status_text).has_state() && id(status_text).state != "unknown") ? id(status_text).state : "Klar";
+          it.print(50, 15, id(font_small), COLOR_ON, TextAlign::TOP_LEFT, s_text.c_str());
+          it.strftime(530, 15, id(font_small), COLOR_ON, TextAlign::TOP_RIGHT, "%d. %b  %H:%M", id(ha_time).now());
+          it.line(0, 60, 540, 60);
+
+          it.print(270, 120, id(font_emoji_medium), COLOR_ON, TextAlign::CENTER, "🛋");
+          it.print(270, 190, id(font_medium), COLOR_ON, TextAlign::CENTER, "STUEN");
+          if (id(temp_stuen).has_state()) it.printf(270, 290, id(font_large), COLOR_ON, TextAlign::CENTER, "%.1f °C", id(temp_stuen).state);
+
+      # --- SIDE 3: UDENFOR + I DAG ---
+      - id: page_main 
+        lambda: |-
+          it.fill(COLOR_OFF);
+          
+          // FÆLLES HEADER
+          if (id(status_icon).has_state() && id(status_icon).state != "unknown") 
+            it.print(10, 15, id(font_emoji_small), COLOR_ON, TextAlign::TOP_LEFT, id(status_icon).state.c_str());
+          std::string s_text = (id(status_text).has_state() && id(status_text).state != "unknown") ? id(status_text).state : "Klar";
+          it.print(50, 15, id(font_small), COLOR_ON, TextAlign::TOP_LEFT, s_text.c_str());
+          it.strftime(530, 15, id(font_small), COLOR_ON, TextAlign::TOP_RIGHT, "%d. %b  %H:%M", id(ha_time).now());
+          it.line(0, 60, 540, 60);
+
+          // TEMPERATUR
+          if (id(temp_outdoor).has_state()) {
+            it.printf(270, 140, id(font_large), COLOR_ON, TextAlign::CENTER, "%.1f °C", id(temp_outdoor).state);
+            it.print(270, 220, id(font_small), COLOR_ON, TextAlign::CENTER, "Udendørs");
+          }
+          
+          // FORECAST
+          auto draw_fc = [&](int x, int y, std::string state, float temp, const char* label) {
+            std::string icon = "☁";
+            if (state == "sunny" || state == "clear-day") icon = "☀";
+            else if (state == "partlycloudy") icon = "⛅";
+            else if (state == "rainy") icon = "🌧";
+            it.printf(x, y, id(font_small), COLOR_ON, TextAlign::TOP_CENTER, "%s", label);
+            it.print(x, y + 35, id(font_icon), COLOR_ON, TextAlign::TOP_CENTER, icon.c_str());
+            it.printf(x, y + 105, id(font_small), COLOR_ON, TextAlign::TOP_CENTER, "%.0f°", temp);
+          };
+          draw_fc(110, 300, id(icon_1h).state, id(temp_1h).state, "+1t");
+          draw_fc(270, 300, id(icon_2h).state, id(temp_2h).state, "+2t");
+          draw_fc(430, 300, id(icon_3h).state, id(temp_3h).state, "+3t");
+
+          it.line(30, 460, 510, 460); // Divider
+
+          // KALENDER TITEL
+          auto time = id(ha_time).now();
+          const char* dage[] = {"", "Søndag", "Mandag", "Tirsdag", "Onsdag", "Torsdag", "Fredag", "Lørdag"};
+          it.printf(270, 520, id(font_medium), COLOR_ON, TextAlign::CENTER, "%s d. %d.", dage[time.day_of_week], time.day_of_month);
+          
+          // KALENDER INDHOLD (Splitter ved '|')
+          if (id(cal_today).has_state() && id(cal_today).state != "unknown") {
+            std::string str = id(cal_today).state;
+            int y = 580; // Start-højde
+            size_t pos = 0;
+            while ((pos = str.find('|')) != std::string::npos) {
+              it.print(270, y, id(font_small), COLOR_ON, TextAlign::TOP_CENTER, str.substr(0, pos).c_str());
+              y += 35; // Afstand mellem linjer
+              str.erase(0, pos + 1);
+            }
+            it.print(270, y, id(font_small), COLOR_ON, TextAlign::TOP_CENTER, str.c_str());
+          }
+
+      # --- SIDE 4: UGENS KALENDER ---
+      - id: page_cal_week
+        lambda: |-
+          it.fill(COLOR_OFF);
+          
+          // FÆLLES HEADER
+          if (id(status_icon).has_state() && id(status_icon).state != "unknown") 
+            it.print(10, 15, id(font_emoji_small), COLOR_ON, TextAlign::TOP_LEFT, id(status_icon).state.c_str());
+          std::string s_text = (id(status_text).has_state() && id(status_text).state != "unknown") ? id(status_text).state : "Klar";
+          it.print(50, 15, id(font_small), COLOR_ON, TextAlign::TOP_LEFT, s_text.c_str());
+          it.strftime(530, 15, id(font_small), COLOR_ON, TextAlign::TOP_RIGHT, "%d. %b  %H:%M", id(ha_time).now());
+          it.line(0, 60, 540, 60);
+          
+          // UGENS TITEL + IKON (Visuelt matchet med de andre sider)
+          it.print(270, 120, id(font_emoji_medium), COLOR_ON, TextAlign::CENTER, "📅");
+          it.printf(270, 190, id(font_medium), COLOR_ON, TextAlign::CENTER, "UGE %s", id(ha_time).now().strftime("%W").c_str());
+          it.line(0, 260, 540, 260); // Ny delelinje under titlen
+          
+          // KALENDER INDHOLD (Splitter ved '|')
+          if (id(cal_week).has_state() && id(cal_week).state != "unknown") {
+            std::string str = id(cal_week).state;
+            int y = 290; // Listen starter nu længere nede
+            size_t pos = 0;
+            while ((pos = str.find('|')) != std::string::npos) {
+              it.print(20, y, id(font_small), COLOR_ON, TextAlign::TOP_LEFT, str.substr(0, pos).c_str());
+              y += 40; // Afstand mellem linjer
+              str.erase(0, pos + 1);
+            }
+            it.print(20, y, id(font_small), COLOR_ON, TextAlign::TOP_LEFT, str.c_str());
+          }
+
+interval:
+  - interval: 1min
     then:
-      - lambda: |-
-          ESP_LOGI("touch", ">>> Format skiftet! <<<");
-          id(use_24h_format) = !id(use_24h_format);
       - component.update: m5paper_display
-      - delay: 1s # 1 sekunds cooldown før den lytter efter tryk igen
-
-# --- TOUCHSCREEN ---
-touchscreen:
-  - platform: gt911
-    display: m5paper_display
-    id: gt911_touchscreen
-    address: 0x5D
-    interrupt_pin: GPIO36
-    update_interval: 50ms 
-    on_touch:
-      - script.execute: debounce_touch

@@ -1,0 +1,66 @@
+alias: "M5Stack: Opdater Kalender og Status"
+description: "Henter data fra calendar.familie og sender formateret tekst med linjeskift til M5Paper"
+mode: single
+
+trigger:
+  - platform: time_pattern
+    minutes: "/15"
+  - platform: homeassistant
+    event: start
+
+action:
+  # 1. HENT DAGENS AFTALER (Resten af i dag)
+  - service: calendar.get_events
+    target:
+      entity_id: calendar.familie
+    data:
+      end_date_time: "{{ today_at('23:59:00') }}"
+    response_variable: agenda_idag
+
+  - service: input_text.set_value
+    target:
+      entity_id: input_text.m5paper_cal_today
+    data:
+      value: >
+        {% set events = agenda_idag['calendar.familie']['events'] %}
+        {% if events | length == 0 %}
+          Ingen flere aftaler i dag
+        {% else %}
+          {%- set ns = namespace(text='') -%}
+          {%- for event in events[:3] -%}
+            {%- set start = as_timestamp(event.start) | timestamp_custom('%H:%M') -%}
+            {%- set ns.text = ns.text ~ start ~ ' ' ~ event.summary ~ '\n' -%}
+          {%- endfor -%}
+          {{ ns.text }}
+        {% endif %}
+
+  # 2. HENT UGENS AFTALER (Næste 5 dage, startende fra i morgen)
+  - service: calendar.get_events
+    target:
+      entity_id: calendar.familie
+    data:
+      start_date_time: "{{ today_at('00:00:00') + timedelta(days=1) }}"
+      duration:
+        days: 5
+    response_variable: agenda_uge
+
+  - service: input_text.set_value
+    target:
+      entity_id: input_text.m5paper_cal_week
+    data:
+      value: >
+        {% set events = agenda_uge['calendar.familie']['events'] %}
+        {% if events | length == 0 %}
+          Ingen aftaler de næste 5 dage
+        {% else %}
+          {%- set ns = namespace(text='') -%}
+          {%- set dage = {'Mon': 'Man', 'Tue': 'Tir', 'Wed': 'Ons', 'Thu': 'Tor', 'Fri': 'Fre', 'Sat': 'Lør', 'Sun': 'Søn'} -%}
+          {%- for event in events[:8] -%}
+            {%- set d_eng = as_timestamp(event.start) | timestamp_custom('%a') -%}
+            {%- set d_dk = dage.get(d_eng, d_eng) -%}
+            {%- set dato = as_timestamp(event.start) | timestamp_custom('%d/%m') -%}
+            {%- set tid = as_timestamp(event.start) | timestamp_custom('%H:%M') -%}
+            {%- set ns.text = ns.text ~ d_dk ~ ' ' ~ dato ~ ' ' ~ tid ~ ': ' ~ event.summary ~ '\n' -%}
+          {%- endfor -%}
+          {{ ns.text }}
+        {% endif %}

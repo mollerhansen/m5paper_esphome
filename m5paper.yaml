@@ -7,9 +7,14 @@ esphome:
       - -DBOARD_HAS_PSRAM
       - -mfix-esp32-psram-cache-issue
 
+  includes:
+    - display_helpers.h
+
   on_boot:
     - priority: -100.0 
       then:
+        - bm8563.read_time:
+            id: rtc_time
         - delay: 2s
         - it8951e.clear: m5paper_display
         - display.page.show: page_main
@@ -59,7 +64,7 @@ font:
   - file: "gfonts://Noto Emoji"
     id: font_emoji_small
     size: 26
-    glyphs: "👕🧺🫧💧🔒🔓🚪"
+    glyphs: "👕🧺🫧💧🔒🔓🚪🔋🔌"
 
   - file: "gfonts://Noto Emoji"
     id: font_emoji_medium
@@ -79,11 +84,17 @@ font:
   - file: "gfonts://Noto Emoji"
     id: font_icon
     size: 55
-    glyphs: "☀☁⛅🌧🌨🌩🌙🌫"
+    glyphs: "☀☁⛅🌧🌨🌩🌙🌫🌬💨"
 
 time:
   - platform: homeassistant
     id: ha_time
+    on_time_sync:
+      - bm8563.write_time:
+          id: rtc_time
+  - platform: bm8563
+    id: rtc_time
+    sleep_duration: 1h
 
 sensor:
   - platform: homeassistant
@@ -106,6 +117,41 @@ sensor:
   - platform: homeassistant
     entity_id: sensor.weather_temp_3h
     id: temp_3h
+
+  - platform: sht3xd
+    temperature:
+      id: local_temp
+      name: "M5Paper Temperature"
+    humidity:
+      id: local_humidity
+      name: "M5Paper Humidity"
+    address: 0x44
+    update_interval: 60s
+
+  - platform: adc
+    pin: GPIO35
+    name: "M5Paper Battery Voltage"
+    id: battery_voltage
+    update_interval: 60s
+    unit_of_measurement: "V"
+    device_class: voltage
+    filters:
+      - multiply: 2.0
+
+touchscreen:
+  - platform: gt911
+    id: m5paper_touchscreen
+    interrupt_pin: GPIO36
+    on_touch:
+      - lambda: |-
+          if (touch.x > 400 && touch.y < 100) {
+            id(m5paper_display).update();
+          }
+          if (touch.y > 900) {
+            id(rtc_time).apply_sleep_duration();
+            id(m5paper_board).shutdown_main_power();
+          }
+
 
 text_sensor:
   - platform: homeassistant
@@ -134,6 +180,7 @@ text_sensor:
     id: cal_week
 
 m5paper:
+  id: m5paper_board
   main_power_pin: GPIO2
   battery_power_pin: GPIO5
 
@@ -157,6 +204,12 @@ binary_sensor:
       - display.page.show: page_main
       - it8951e.clear: m5paper_display
       - component.update: m5paper_display
+    on_click:
+      min_length: 1s
+      max_length: 10s
+      then:
+        - bm8563.apply_sleep_duration: rtc_time
+        - m5paper.shutdown_main_power: m5paper_board
 
 display:
   - platform: it8951e
@@ -172,14 +225,7 @@ display:
       - id: page_1st_sal
         lambda: |-
           it.fill(COLOR_OFF);
-          
-          // FÆLLES HEADER
-          if (id(status_icon).has_state() && id(status_icon).state != "unknown") 
-            it.print(10, 15, id(font_emoji_small), COLOR_ON, TextAlign::TOP_LEFT, id(status_icon).state.c_str());
-          std::string s_text = (id(status_text).has_state() && id(status_text).state != "unknown") ? id(status_text).state : "Klar";
-          it.print(50, 15, id(font_small), COLOR_ON, TextAlign::TOP_LEFT, s_text.c_str());
-          it.strftime(530, 15, id(font_small), COLOR_ON, TextAlign::TOP_RIGHT, "%d. %b  %H:%M", id(ha_time).now());
-          it.line(0, 60, 540, 60);
+          draw_header(it, id(status_icon), id(status_text), id(ha_time), id(font_emoji_small), id(font_small));
 
           it.print(270, 120, id(font_emoji_medium), COLOR_ON, TextAlign::CENTER, "🛏");
           it.print(270, 190, id(font_medium), COLOR_ON, TextAlign::CENTER, "1. SAL");
@@ -189,14 +235,7 @@ display:
       - id: page_stuen
         lambda: |-
           it.fill(COLOR_OFF);
-          
-          // FÆLLES HEADER
-          if (id(status_icon).has_state() && id(status_icon).state != "unknown") 
-            it.print(10, 15, id(font_emoji_small), COLOR_ON, TextAlign::TOP_LEFT, id(status_icon).state.c_str());
-          std::string s_text = (id(status_text).has_state() && id(status_text).state != "unknown") ? id(status_text).state : "Klar";
-          it.print(50, 15, id(font_small), COLOR_ON, TextAlign::TOP_LEFT, s_text.c_str());
-          it.strftime(530, 15, id(font_small), COLOR_ON, TextAlign::TOP_RIGHT, "%d. %b  %H:%M", id(ha_time).now());
-          it.line(0, 60, 540, 60);
+          draw_header(it, id(status_icon), id(status_text), id(ha_time), id(font_emoji_small), id(font_small));
 
           it.print(270, 120, id(font_emoji_medium), COLOR_ON, TextAlign::CENTER, "🛋");
           it.print(270, 190, id(font_medium), COLOR_ON, TextAlign::CENTER, "STUEN");
@@ -206,14 +245,7 @@ display:
       - id: page_main 
         lambda: |-
           it.fill(COLOR_OFF);
-          
-          // FÆLLES HEADER
-          if (id(status_icon).has_state() && id(status_icon).state != "unknown") 
-            it.print(10, 15, id(font_emoji_small), COLOR_ON, TextAlign::TOP_LEFT, id(status_icon).state.c_str());
-          std::string s_text = (id(status_text).has_state() && id(status_text).state != "unknown") ? id(status_text).state : "Klar";
-          it.print(50, 15, id(font_small), COLOR_ON, TextAlign::TOP_LEFT, s_text.c_str());
-          it.strftime(530, 15, id(font_small), COLOR_ON, TextAlign::TOP_RIGHT, "%d. %b  %H:%M", id(ha_time).now());
-          it.line(0, 60, 540, 60);
+          draw_header(it, id(status_icon), id(status_text), id(ha_time), id(font_emoji_small), id(font_small));
 
           // TEMPERATUR
           if (id(temp_outdoor).has_state()) {
@@ -222,18 +254,32 @@ display:
           }
           
           // FORECAST
-          auto draw_fc = [&](int x, int y, std::string state, float temp, const char* label) {
+          auto draw_fc = [&](int x, int y, std::string state, float temp, int offset) {
             std::string icon = "☁";
             if (state == "sunny" || state == "clear-day") icon = "☀";
             else if (state == "partlycloudy") icon = "⛅";
             else if (state == "rainy") icon = "🌧";
-            it.printf(x, y, id(font_small), COLOR_ON, TextAlign::TOP_CENTER, "%s", label);
+            else if (state == "pouring") icon = "🌧";
+            else if (state == "snowy") icon = "🌨";
+            else if (state == "snowy-rainy") icon = "🌨";
+            else if (state == "lightning") icon = "🌩";
+            else if (state == "lightning-rainy") icon = "🌩";
+            else if (state == "fog") icon = "🌫";
+            else if (state == "windy") icon = "🌬";
+            else if (state == "windy-variant") icon = "💨";
+            else if (state == "exceptional") icon = "✨";
+            
+            // Beregn tidspunkt for forecast
+            auto fc_time = id(ha_time).now();
+            ESPTime t = ESPTime::from_epoch_local(fc_time.timestamp + offset * 3600);
+            it.strftime(x, y, id(font_small), COLOR_ON, TextAlign::TOP_CENTER, "%H:00", t);
+            
             it.print(x, y + 35, id(font_icon), COLOR_ON, TextAlign::TOP_CENTER, icon.c_str());
             it.printf(x, y + 105, id(font_small), COLOR_ON, TextAlign::TOP_CENTER, "%.0f°", temp);
           };
-          draw_fc(110, 300, id(icon_1h).state, id(temp_1h).state, "+1t");
-          draw_fc(270, 300, id(icon_2h).state, id(temp_2h).state, "+2t");
-          draw_fc(430, 300, id(icon_3h).state, id(temp_3h).state, "+3t");
+          draw_fc(110, 300, id(icon_1h).state, id(temp_1h).state, 1);
+          draw_fc(270, 300, id(icon_2h).state, id(temp_2h).state, 2);
+          draw_fc(430, 300, id(icon_3h).state, id(temp_3h).state, 3);
 
           it.line(30, 460, 510, 460); // Divider
 
@@ -259,18 +305,12 @@ display:
       - id: page_cal_week
         lambda: |-
           it.fill(COLOR_OFF);
+          draw_header(it, id(status_icon), id(status_text), id(ha_time), id(font_emoji_small), id(font_small));
           
-          // FÆLLES HEADER
-          if (id(status_icon).has_state() && id(status_icon).state != "unknown") 
-            it.print(10, 15, id(font_emoji_small), COLOR_ON, TextAlign::TOP_LEFT, id(status_icon).state.c_str());
-          std::string s_text = (id(status_text).has_state() && id(status_text).state != "unknown") ? id(status_text).state : "Klar";
-          it.print(50, 15, id(font_small), COLOR_ON, TextAlign::TOP_LEFT, s_text.c_str());
-          it.strftime(530, 15, id(font_small), COLOR_ON, TextAlign::TOP_RIGHT, "%d. %b  %H:%M", id(ha_time).now());
-          it.line(0, 60, 540, 60);
-          
-          // UGENS TITEL + IKON (Visuelt matchet med de andre sider)
+          // UGENS TITEL + IKON (Beregnet for i morgen, da listen starter der)
           it.print(270, 120, id(font_emoji_medium), COLOR_ON, TextAlign::CENTER, "📅");
-          it.printf(270, 190, id(font_medium), COLOR_ON, TextAlign::CENTER, "UGE %s", id(ha_time).now().strftime("%W").c_str());
+          auto tomorrow = ESPTime::from_epoch_local(id(ha_time).now().timestamp + 86400);
+          it.printf(270, 190, id(font_medium), COLOR_ON, TextAlign::CENTER, "UGE %s", tomorrow.strftime("%V").c_str());
           it.line(0, 260, 540, 260); // Ny delelinje under titlen
           
           // KALENDER INDHOLD (Splitter ved '|')
@@ -285,6 +325,7 @@ display:
             }
             it.print(20, y, id(font_small), COLOR_ON, TextAlign::TOP_LEFT, str.c_str());
           }
+
 
 interval:
   - interval: 1min

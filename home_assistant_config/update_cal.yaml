@@ -26,12 +26,12 @@ action:
         {% if events | length == 0 %}
           Ingen flere aftaler i dag
         {% else %}
-          {%- set ns = namespace(text='') -%}
-          {%- for event in events[:3] -%}
-            {%- set start = as_timestamp(event.start) | timestamp_custom('%H:%M') -%}
-            {%- set ns.text = ns.text ~ start ~ ' ' ~ event.summary ~ '\n' -%}
-          {%- endfor -%}
-          {{ ns.text }}
+          {% set ns = namespace(lines=[]) %}
+          {% for event in events[:3] %}
+            {% set start = as_timestamp(event.start) | timestamp_custom('%H:%M') %}
+            {% set ns.lines = ns.lines + [start ~ ' ' ~ event.summary] %}
+          {% endfor %}
+          {{ ns.lines | join('|') }}
         {% endif %}
 
   # 2. HENT UGENS AFTALER (Næste 5 dage, startende fra i morgen)
@@ -53,14 +53,14 @@ action:
         {% if events | length == 0 %}
           Ingen aftaler de næste 5 dage
         {% else %}
-          {%- set ns = namespace(text='') -%}
-          {%- set dage = {'Mon': 'Man', 'Tue': 'Tir', 'Wed': 'Ons', 'Thu': 'Tor', 'Fri': 'Fre', 'Sat': 'Lør', 'Sun': 'Søn'} -%}
-          {%- for event in events[:8] -%}
-            {%- set d_eng = as_timestamp(event.start) | timestamp_custom('%a') -%}
-            {%- set d_dk = dage.get(d_eng, d_eng) -%}
-            {%- set dato = as_timestamp(event.start) | timestamp_custom('%d/%m') -%}
-            {%- set tid = as_timestamp(event.start) | timestamp_custom('%H:%M') -%}
-            {%- set ns.text = ns.text ~ d_dk ~ ' ' ~ dato ~ ' ' ~ tid ~ ': ' ~ event.summary ~ '\n' -%}
-          {%- endfor -%}
-          {{ ns.text }}
+          {% set ns = namespace(lines=[]) %}
+          {% set dage = {'Mon': 'Man', 'Tue': 'Tir', 'Wed': 'Ons', 'Thu': 'Tor', 'Fri': 'Fre', 'Sat': 'Lør', 'Sun': 'Søn'} %}
+          {% for event in events[:8] %}
+            {% set d_eng = as_timestamp(event.start) | timestamp_custom('%a') %}
+            {% set d_dk = dage.get(d_eng, d_eng) %}
+            {% set dato = as_timestamp(event.start) | timestamp_custom('%d/%m') %}
+            {% set tid = as_timestamp(event.start) | timestamp_custom('%H:%M') %}
+            {% set ns.lines = ns.lines + [d_dk ~ ' ' ~ dato ~ ' ' ~ tid ~ ': ' ~ event.summary] %}
+          {% endfor %}
+          {{ ns.lines | join('|') }}
         {% endif %}

@@ -64,12 +64,12 @@ font:
   - file: "gfonts://Noto Emoji"
     id: font_emoji_small
     size: 26
-    glyphs: "👕🧺🫧💧🔒🔓🚪🔋🔌"
+    glyphs: "👕🧺🫧💧🔒🔓🚪🔋🔌🌬🏠"
 
   - file: "gfonts://Noto Emoji"
     id: font_emoji_medium
     size: 48
-    glyphs: "🛋🛏🏡📅"
+    glyphs: "🛋🛏🏡📅👕🔓🌬🏠"
 
   - file: "FreeSans.ttf"
     id: font_medium
@@ -84,7 +84,7 @@ font:
   - file: "gfonts://Noto Emoji"
     id: font_icon
     size: 55
-    glyphs: "☀☁⛅🌧🌨🌩🌙🌫🌬💨"
+    glyphs: "☀☁⛅🌧🌨🌩🌙🌫🌬💨👕🔓🏠✨"
 
 time:
   - platform: homeassistant
@@ -92,14 +92,52 @@ time:
     on_time_sync:
       - bm8563.write_time:
           id: rtc_time
+    on_time:
+      - seconds: 0
+        minutes: 0
+        hours: 22
+        then:
+          - lambda: "// Logic moved to Home Assistant"
   - platform: bm8563
     id: rtc_time
     sleep_duration: 1h
 
+globals:
+  - id: big_alert_active
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  - id: last_alert_text
+    type: std::string
+    restore_value: no
+    initial_value: '""'
+  - id: last_alert_icon
+    type: std::string
+    restore_value: no
+    initial_value: '""'
+
+script:
+  - id: trigger_big_alert
+    mode: restart
+    then:
+      - lambda: 'id(big_alert_active) = true;'
+      - component.update: m5paper_display
+
 sensor:
+  - platform: homeassistant
+    entity_id: sensor.living_room_carbon_dioxide
+    id: co2_level
+
+  - platform: homeassistant
+    entity_id: sensor.vaskemaskine_power
+    id: washer_power
+
   - platform: homeassistant
     entity_id: sensor.bedroom_temperature
     id: temp_1st_sal
+  - platform: homeassistant
+    entity_id: sensor.bedroom_volatile_organic_compounds_parts
+    id: bedroom_voc
   - platform: homeassistant
     entity_id: climate.stuen_radiators
     attribute: current_temperature
@@ -144,9 +182,16 @@ touchscreen:
     interrupt_pin: GPIO36
     on_touch:
       - lambda: |-
+          // Refresh screen if top right is touched
           if (touch.x > 400 && touch.y < 100) {
             id(m5paper_display).update();
           }
+          // Dismiss alert if touched in the bottom area
+          if (id(big_alert_active) && touch.y > 640) {
+            id(big_alert_active) = false;
+            id(m5paper_display).update();
+          }
+          // Shutdown if touched in the very bottom edge
           if (touch.y > 900) {
             id(rtc_time).apply_sleep_duration();
             id(m5paper_board).shutdown_main_power();
@@ -155,8 +200,29 @@ touchscreen:
 
 text_sensor:
   - platform: homeassistant
-    entity_id: weather.forecast_home
-    id: weather_condition
+    entity_id: sensor.kaelderdor_operator
+    id: lock_operator
+
+  - platform: homeassistant
+    entity_id: input_text.m5paper_status_icon
+    id: status_icon
+  - platform: homeassistant
+    entity_id: input_text.m5paper_status_text
+    id: status_text
+    on_value:
+      then:
+        - lambda: |-
+            if (x != "Klar" && x != "unknown" && !x.empty()) {
+              id(big_alert_active) = true;
+              id(last_alert_text) = x;
+              if (id(status_icon).has_state()) id(last_alert_icon) = id(status_icon).state;
+              id(m5paper_display).update();
+            } else if (x == "Klar") {
+              // Only auto-clear if it was already "Klar" or we want it to go away
+              id(big_alert_active) = false;
+              id(m5paper_display).update();
+            }
+
   - platform: homeassistant
     entity_id: sensor.weather_icon_1h
     id: icon_1h
@@ -166,12 +232,6 @@ text_sensor:
   - platform: homeassistant
     entity_id: sensor.weather_icon_3h
     id: icon_3h
-  - platform: homeassistant
-    entity_id: input_text.m5paper_status_icon
-    id: status_icon
-  - platform: homeassistant
-    entity_id: input_text.m5paper_status_text
-    id: status_text
   - platform: homeassistant
     entity_id: input_text.m5paper_cal_today
     id: cal_today
@@ -226,27 +286,33 @@ display:
         lambda: |-
           it.fill(COLOR_OFF);
           draw_header(it, id(status_icon), id(status_text), id(ha_time), id(font_emoji_small), id(font_small));
-
+          
           it.print(270, 120, id(font_emoji_medium), COLOR_ON, TextAlign::CENTER, "🛏");
           it.print(270, 190, id(font_medium), COLOR_ON, TextAlign::CENTER, "1. SAL");
           if (id(temp_1st_sal).has_state()) it.printf(270, 290, id(font_large), COLOR_ON, TextAlign::CENTER, "%.1f °C", id(temp_1st_sal).state);
+          if (id(bedroom_voc).has_state()) it.printf(270, 380, id(font_small), COLOR_ON, TextAlign::CENTER, "VOC: %.0f ppb", id(bedroom_voc).state);
+
+          if (id(big_alert_active)) draw_alert_zone(it, id(last_alert_icon).c_str(), id(last_alert_text).c_str(), id(font_icon), id(font_medium));
 
       # --- SIDE 2: STUEN ---
       - id: page_stuen
         lambda: |-
           it.fill(COLOR_OFF);
           draw_header(it, id(status_icon), id(status_text), id(ha_time), id(font_emoji_small), id(font_small));
-
+          
           it.print(270, 120, id(font_emoji_medium), COLOR_ON, TextAlign::CENTER, "🛋");
           it.print(270, 190, id(font_medium), COLOR_ON, TextAlign::CENTER, "STUEN");
           if (id(temp_stuen).has_state()) it.printf(270, 290, id(font_large), COLOR_ON, TextAlign::CENTER, "%.1f °C", id(temp_stuen).state);
+          if (id(co2_level).has_state()) it.printf(270, 380, id(font_small), COLOR_ON, TextAlign::CENTER, "CO2: %.0f ppm", id(co2_level).state);
+
+          if (id(big_alert_active)) draw_alert_zone(it, id(last_alert_icon).c_str(), id(last_alert_text).c_str(), id(font_icon), id(font_medium));
 
       # --- SIDE 3: UDENFOR + I DAG ---
       - id: page_main 
         lambda: |-
           it.fill(COLOR_OFF);
           draw_header(it, id(status_icon), id(status_text), id(ha_time), id(font_emoji_small), id(font_small));
-
+          
           // TEMPERATUR
           if (id(temp_outdoor).has_state()) {
             it.printf(270, 140, id(font_large), COLOR_ON, TextAlign::CENTER, "%.1f °C", id(temp_outdoor).state);
@@ -269,7 +335,6 @@ display:
             else if (state == "windy-variant") icon = "💨";
             else if (state == "exceptional") icon = "✨";
             
-            // Beregn tidspunkt for forecast
             auto fc_time = id(ha_time).now();
             ESPTime t = ESPTime::from_epoch_local(fc_time.timestamp + offset * 3600);
             it.strftime(x, y, id(font_small), COLOR_ON, TextAlign::TOP_CENTER, "%H:00", t);
@@ -288,18 +353,19 @@ display:
           const char* dage[] = {"", "Søndag", "Mandag", "Tirsdag", "Onsdag", "Torsdag", "Fredag", "Lørdag"};
           it.printf(270, 520, id(font_medium), COLOR_ON, TextAlign::CENTER, "%s d. %d.", dage[time.day_of_week], time.day_of_month);
           
-          // KALENDER INDHOLD (Splitter ved '|')
           if (id(cal_today).has_state() && id(cal_today).state != "unknown") {
             std::string str = id(cal_today).state;
-            int y = 580; // Start-højde
+            int y = 580; 
             size_t pos = 0;
             while ((pos = str.find('|')) != std::string::npos) {
               it.print(270, y, id(font_small), COLOR_ON, TextAlign::TOP_CENTER, str.substr(0, pos).c_str());
-              y += 35; // Afstand mellem linjer
+              y += 35; 
               str.erase(0, pos + 1);
             }
             it.print(270, y, id(font_small), COLOR_ON, TextAlign::TOP_CENTER, str.c_str());
           }
+
+          if (id(big_alert_active)) draw_alert_zone(it, id(last_alert_icon).c_str(), id(last_alert_text).c_str(), id(font_icon), id(font_medium));
 
       # --- SIDE 4: UGENS KALENDER ---
       - id: page_cal_week
@@ -307,24 +373,24 @@ display:
           it.fill(COLOR_OFF);
           draw_header(it, id(status_icon), id(status_text), id(ha_time), id(font_emoji_small), id(font_small));
           
-          // UGENS TITEL + IKON (Beregnet for i morgen, da listen starter der)
           it.print(270, 120, id(font_emoji_medium), COLOR_ON, TextAlign::CENTER, "📅");
           auto tomorrow = ESPTime::from_epoch_local(id(ha_time).now().timestamp + 86400);
           it.printf(270, 190, id(font_medium), COLOR_ON, TextAlign::CENTER, "UGE %s", tomorrow.strftime("%V").c_str());
-          it.line(0, 260, 540, 260); // Ny delelinje under titlen
+          it.line(0, 260, 540, 260); 
           
-          // KALENDER INDHOLD (Splitter ved '|')
           if (id(cal_week).has_state() && id(cal_week).state != "unknown") {
             std::string str = id(cal_week).state;
-            int y = 290; // Listen starter nu længere nede
+            int y = 290; 
             size_t pos = 0;
             while ((pos = str.find('|')) != std::string::npos) {
               it.print(20, y, id(font_small), COLOR_ON, TextAlign::TOP_LEFT, str.substr(0, pos).c_str());
-              y += 40; // Afstand mellem linjer
+              y += 40; 
               str.erase(0, pos + 1);
             }
             it.print(20, y, id(font_small), COLOR_ON, TextAlign::TOP_LEFT, str.c_str());
           }
+
+          if (id(big_alert_active)) draw_alert_zone(it, id(last_alert_icon).c_str(), id(last_alert_text).c_str(), id(font_icon), id(font_medium));
 
 
 interval:

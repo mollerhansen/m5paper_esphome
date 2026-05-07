@@ -1,0 +1,67 @@
+alias: "M5Stack: Opdater Status og Alarmer"
+description: "Overvåger sensorer og opdaterer status_text og status_icon på M5Paper"
+mode: restart
+
+trigger:
+  # Tjek hvert 5. minut eller når en kritisk sensor ændrer sig
+  - platform: time_pattern
+    minutes: "/5"
+  - platform: state
+    entity_id: 
+      - sensor.living_room_carbon_dioxide
+      - sensor.kaelderdor_operator
+  - platform: time
+    at: "22:00:00"
+
+action:
+  - choose:
+      # 1. PRIORITY: CO2 ALARM (> 1200 ppm)
+      - conditions:
+          - condition: numeric_state
+            entity_id: sensor.living_room_carbon_dioxide
+            above: 1200
+        sequence:
+          - service: input_text.set_value
+            target:
+              entity_id: input_text.m5paper_status_icon
+            data:
+              value: "🌬"
+          - service: input_text.set_value
+            target:
+              entity_id: input_text.m5paper_status_text
+            data:
+              value: "Luft ud! CO2 er høj"
+
+      # 2. PRIORITY: KÆLDERDØR LÅST OP EFTER KL 22
+      - conditions:
+          - condition: time
+            after: "22:00:00"
+            before: "06:00:00"
+          - condition: state
+            entity_id: sensor.kaelderdor_operator
+            state: "unlocked"
+        sequence:
+          - service: input_text.set_value
+            target:
+              entity_id: input_text.m5paper_status_icon
+            data:
+              value: "🔓"
+          - service: input_text.set_value
+            target:
+              entity_id: input_text.m5paper_status_text
+            data:
+              value: "Husk at låse kælderdør"
+
+      # DEFAULT: ALT ER OK
+      - conditions: []
+        sequence:
+          - service: input_text.set_value
+            target:
+              entity_id: input_text.m5paper_status_icon
+            data:
+              value: "🏠"
+          - service: input_text.set_value
+            target:
+              entity_id: input_text.m5paper_status_text
+            data:
+              value: "Klar"

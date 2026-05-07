@@ -55,3 +55,21 @@ This document outlines the identified issues and proposed architectural/function
 
 ### 3.2 Dynamic Weather Icons
 - **Proposal**: Expand the `draw_fc` lambda to support a wider range of Home Assistant weather states (e.g., `exceptional`, `fog`, `windy`) to match the Noto Emoji font capabilities.
+
+### 3.3 Pikachu som hjælper
+- **Proposal**: Alarm vinduet i bunden skal være en talebobble med Pikachu i forgrunden. Alt efter alarm skal pikachu være glad, bedrevidende, bekymret, træt..
+
+### 3.4 fjerne alarmvinduet
+- **Proposal**: brug touch interfacet til at dismisse alarmvinduet. 
+
+### 3.5 easter egg
+- **Proposal**: Få pikachu til at dukke frem med forskellige udsagn og udtryk tilfældigt. Evt tilføjer vi easter eggs i update yaml. De skal også dukke frem og frosvinde ved tryk i bunden af skærmen. 
+
+## 4. Flere Ideer
+
+### 4.1 fler-dags prognose 
+- **Proposal**: Vis 5 dags prognose i ugekalenderen
+
+### 4.2 Device batterier 
+
+- **Proposal**: Vi det batterier der er løbet tør. Måske lave en hel side under kalender siden med batteri statuser

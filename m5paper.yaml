@@ -9,6 +9,7 @@ esphome:
 
   includes:
     - display_helpers.h
+    - helper_assistant/pikachu_happy.h
 
   on_boot:
     - priority: -100.0 
@@ -64,13 +65,12 @@ font:
   - file: "gfonts://Noto Emoji"
     id: font_emoji_small
     size: 26
-    glyphs: "👕🧺🫧💧🔒🔓🚪🔋🔌🌬🏠"
+    glyphs: "👕🧺🫧💧🔒🔓🚪🔋🔌🌬🏠✨🌙☁☀⛅🌧🌨🌩🌫💨"
 
   - file: "gfonts://Noto Emoji"
     id: font_emoji_medium
     size: 48
-    glyphs: "🛋🛏🏡📅👕🔓🌬🏠"
-
+    glyphs: "🛋🛏🏡📅👕🔓🌬🏠✨🌙☁☀⛅🌧🌨🌩🌫💨"
   - file: "FreeSans.ttf"
     id: font_medium
     size: 48

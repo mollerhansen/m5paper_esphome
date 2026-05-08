@@ -13,37 +13,18 @@ This document outlines the identified issues and proposed architectural/function
 - **Issue**: The Header (Status icon, text, time, and line divider) is duplicated across all 4 pages in `m5paper.yaml`.
 - **Impact**: Harder to maintain; changes to the header must be applied in 4 places.
 - **Fix**: Move shared drawing logic into a C++ header file (`display_helpers.h`) and call it from the YAML lambdas.
+- **Status**: **Completed**. Logic moved to `draw_header` in `display_helpers.h`.
 
 ## 2. Hardware Utilization Improvements
 
 ### 2.1 Environmental Sensing (SHT3xD)
-- **Status**: Currently unconfigured.
-- **Proposal**: Add the `sht3xd` platform to `m5paper.yaml` to monitor local temperature and humidity.
-- **Config**:
-  ```yaml
-  sensor:
-    - platform: sht3xd
-      temperature:
-        id: local_temp
-        name: "M5Paper Temperature"
-      humidity:
-        id: local_humidity
-        name: "M5Paper Humidity"
-      address: 0x44
-      update_interval: 60s
-  ```
+- **Status**: **Completed**. SHT3xD configured and reporting.
 
 ### 2.2 Battery Monitoring
-- **Status**: Missing.
-- **Proposal**: Implement battery voltage monitoring. The M5Paper uses an ADC on GPIO35 with a voltage divider (typically 1:2) to measure battery levels.
-- **Note**: Requires calibration in the `m5paper` custom component or a standard ADC sensor with `multiply: 2.0`.
+- **Status**: **Completed**. ADC sensor implemented on GPIO35 with 2.0 multiplier.
 
 ### 2.3 Power Management & Deep Sleep
-- **Status**: Device is always on, leading to poor battery life.
-- **Proposal**: 
-    1. Sync ESPHome time to BM8563 RTC on boot.
-    2. Implement a "Sleep" button or timeout.
-    3. Use `bm8563.apply_sleep_duration` and `m5paper.shutdown_main_power` for true low-power states.
+- **Status**: **Partially Completed**. RTC sync and shutdown actions implemented. Shutdown mapped to rocker center hold and bottom touch edge.
 
 ## 3. UI/UX Refinement
 
@@ -52,16 +33,18 @@ This document outlines the identified issues and proposed architectural/function
     - Forcing a display refresh.
     - Toggling power/sleep.
     - Quick-switching to the Main page.
+- **Status**: **Completed**. GT911 integrated with touch zones for refresh, dismiss, and shutdown.
 
 ### 3.2 Dynamic Weather Icons
-- **Proposal**: Expand the `draw_fc` lambda to support a wider range of Home Assistant weather states (e.g., `exceptional`, `fog`, `windy`) to match the Noto Emoji font capabilities.
+- **Status**: **Completed**. `draw_fc` expanded with comprehensive state mapping.
 
 ### 3.3 Pikachu som hjælper
 - **Proposal**: Alarm vinduet i bunden skal være en talebobble med Pikachu i forgrunden. Alt efter alarm skal pikachu være glad, bedrevidende, bekymret, træt..
+- **Status**: **Partially Completed**. "Happy" Pikachu sprite implemented (96x120, 16-level grayscale) with speech bubble logic in `draw_alert_zone`. Color inversion fixed.
 
 ### 3.4 fjerne alarmvinduet
 - **Proposal**: brug touch interfacet til at dismisse alarmvinduet. 
-
+- **Status**: **Completed**. Touching the bottom area (y > 640) dismisses the alert.
 ### 3.5 easter egg
 - **Proposal**: Få pikachu til at dukke frem med forskellige udsagn og udtryk tilfældigt. Evt tilføjer vi easter eggs i update yaml. De skal også dukke frem og frosvinde ved tryk i bunden af skærmen. 
 

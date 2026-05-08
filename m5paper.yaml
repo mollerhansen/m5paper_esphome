@@ -10,6 +10,10 @@ esphome:
   includes:
     - display_helpers.h
     - helper_assistant/pikachu_happy.h
+    - helper_assistant/pikachu_angry.h
+    - helper_assistant/pikachu_informative.h
+    - helper_assistant/pikachu_sleep.h
+    - helper_assistant/pikachu_excited.h
 
   on_boot:
     - priority: -100.0 

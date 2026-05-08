@@ -40,7 +40,7 @@ This document outlines the identified issues and proposed architectural/function
 
 ### 3.3 Pikachu som hjælper
 - **Proposal**: Alarm vinduet i bunden skal være en talebobble med Pikachu i forgrunden. Alt efter alarm skal pikachu være glad, bedrevidende, bekymret, træt..
-- **Status**: **Partially Completed**. "Happy" Pikachu sprite implemented (96x120, 16-level grayscale) with speech bubble logic in `draw_alert_zone`. Color inversion fixed.
+- **Status**: **Completed**. 5 emotions implemented: Happy, Angry, Informative, Sleep, and Excited. Logic in `select_pikachu` handles automatic switching based on status icons. Color inversion fixed.
 
 ### 3.4 fjerne alarmvinduet
 - **Proposal**: brug touch interfacet til at dismisse alarmvinduet. 

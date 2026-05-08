@@ -2,14 +2,13 @@
 // Format: 16-bit Grayscale (mapped to 4-bit)
 // Størrelse: 96x120 pixels
 
-#ifndef PIKACHU_SPRITES_H
-#define PIKACHU_SPRITES_H
+#pragma once
 
 #include <stdint.h>
 
 // Bredde og højde
-const int PIKA_WIDTH = 96;
-const int PIKA_HEIGHT = 120;
+const int PIKA_WIDTH_HAPPY = 96;
+const int PIKA_HEIGHT_HAPPY = 120;
 // 'pikachu_happy', 96x120px
 const uint16_t pikachu_happy
 [11520] = {
@@ -735,4 +734,3 @@ const uint16_t pikachu_happy
 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000
 };
 
-#endif

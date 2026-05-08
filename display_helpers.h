@@ -4,10 +4,26 @@
 
 using namespace esphome;
 
-// Forward declaration of sprite data from pikachu_happy.h
-extern const int PIKA_WIDTH;
-extern const int PIKA_HEIGHT;
+// Forward declarations for Pikachu sprites
+extern const int PIKA_WIDTH_HAPPY;
+extern const int PIKA_HEIGHT_HAPPY;
 extern const uint16_t pikachu_happy[];
+
+extern const int PIKA_WIDTH_ANGRY;
+extern const int PIKA_HEIGHT_ANGRY;
+extern const uint16_t pikachu_angry[];
+
+extern const int PIKA_WIDTH_INFO;
+extern const int PIKA_HEIGHT_INFO;
+extern const uint16_t pikachu_informative[];
+
+extern const int PIKA_WIDTH_SLEEP;
+extern const int PIKA_HEIGHT_SLEEP;
+extern const uint16_t pikachu_sleep[];
+
+extern const int PIKA_WIDTH_EXCITED;
+extern const int PIKA_HEIGHT_EXCITED;
+extern const uint16_t pikachu_excited[];
 
 void draw_header(display::Display &it, text_sensor::TextSensor *status_icon, text_sensor::TextSensor *status_text, time::RealTimeClock *ha_time, display::BaseFont *font_emoji, display::BaseFont *font_text) {
     if (status_icon->has_state() && status_icon->state != "unknown") {
@@ -42,7 +58,35 @@ void draw_rounded_rect(display::Display &it, int x, int y, int w, int h, int rad
     }
 }
 
-void draw_alert_zone(display::Display &it, const char* icon, const char* message, display::BaseFont *font_emoji, display::BaseFont *font_text) {
+void draw_pikachu(display::Display &it, int x, int y, const uint16_t* sprite, int width, int height) {
+    for (int py = 0; py < height; py++) {
+        for (int px = 0; px < width; px++) {
+            uint32_t index = (py * width + px);
+            uint16_t color_val = sprite[index];
+            // Invert grayscale: 0xFFFF (white) -> 0, 0x0000 (black) -> 15
+            uint8_t gray = 15 - (color_val / 4369); 
+            it.draw_pixel_at(x + px, y + py, Color(gray, 0, 0));
+        }
+    }
+}
+
+const uint16_t* select_pikachu(const std::string &icon) {
+    if (icon == "🌬") return pikachu_informative;
+    if (icon == "🌙") return pikachu_sleep;
+    if (icon == "✨") return pikachu_excited;
+    if (icon == "☀" || icon == "🛋" || icon == "🏡") return pikachu_happy;
+    // Default or alerts
+    if (icon == "🔓" || icon == "🔋") return pikachu_angry;
+    
+    return pikachu_happy;
+}
+
+void draw_alert_zone(display::Display &it, const char* icon, const char* message, display::BaseFont *font_emoji, display::BaseFont *font_text, const uint16_t* pika_sprite = nullptr) {
+    // If no sprite provided, try to select based on icon
+    if (pika_sprite == nullptr) {
+        pika_sprite = select_pikachu(icon);
+    }
+
     // Alert Zone is bottom area (from y=640 to 960)
     
     // Speech bubble background
@@ -65,22 +109,8 @@ void draw_alert_zone(display::Display &it, const char* icon, const char* message
     it.print(bubble_x + bubble_w/2, bubble_y + 30, font_emoji, COLOR_ON, display::TextAlign::TOP_CENTER, icon);
     it.print(bubble_x + bubble_w/2, bubble_y + 110, font_text, COLOR_ON, display::TextAlign::TOP_CENTER, message);
 
-    // Draw Happy Pikachu (bottom right)
-    // ACTUAL PIKACHU POSITION
-    int pika_x = 400;
-    int pika_y = 780;
-
-    for (int py = 0; py < PIKA_HEIGHT; py++) {
-        for (int px = 0; px < PIKA_WIDTH; px++) {
-            uint32_t index = (py * PIKA_WIDTH + px);
-            uint16_t color_val = pikachu_happy[index];
-
-            // Invert grayscale: 0xFFFF (white) -> 0, 0x0000 (black) -> 15
-            uint8_t gray = 15 - (color_val / 4369); 
-
-            it.draw_pixel_at(pika_x + px, pika_y + py, Color(gray, 0, 0));
-        }
-    }
+    // Draw Pikachu (bottom right)
+    draw_pikachu(it, 400, 780, pika_sprite, 96, 120);
 }
 
 void draw_parked_alert(display::Display &it, int x, int y, const char* icon, display::BaseFont *font_emoji) {

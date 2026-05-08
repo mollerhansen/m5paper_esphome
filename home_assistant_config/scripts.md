@@ -12,46 +12,39 @@ house_power_down:
   icon: mdi:power-sleep
   mode: restart
   sequence:
-    # 1. Update
-     Pikachu to "Informing" / Working
-    - service: input_text.set_value
-      target:
+    # 1. Update status
+    - action: input_text.set_value
+      data:
         entity_id: input_text.m5paper_status_icon
-      data:
         value: "🌬"
-    - service: input_text.set_value
-      target:
-        entity_id: input_text.m5paper_status_text
+    - action: input_text.set_value
       data:
+        entity_id: input_text.m5paper_status_text
         value: "Slukker huset..."
 
     # 2. Turn off all lights
-    # You might want to target specific areas or groups here
-    - service: light.turn_off
-      target:
+    - action: light.turn_off
+      data:
         entity_id: all 
-    
+
     # 3. Ensure Kælderdør is locked
-    # Based on sensor.kaelderdor_operator availability
     - if:
         - condition: state
           entity_id: lock.kaelderdor
           state: "unlocked"
       then:
-        - service: lock.lock
-          target:
+        - action: lock.lock
+          data:
             entity_id: lock.kaelderdor
 
-    # 4. Final Status: Pikachu goes to sleep
-    - service: input_text.set_value
-      target:
+    # 4. Final Status
+    - action: input_text.set_value
+      data:
         entity_id: input_text.m5paper_status_icon
-      data:
         value: "🌙"
-    - service: input_text.set_value
-      target:
-        entity_id: input_text.m5paper_status_text
+    - action: input_text.set_value
       data:
+        entity_id: input_text.m5paper_status_text
         value: "Alt slukket. Godnat!"
 ```
 

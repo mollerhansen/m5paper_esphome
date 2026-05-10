@@ -25,12 +25,12 @@ extern const int PIKA_WIDTH_EXCITED;
 extern const int PIKA_HEIGHT_EXCITED;
 extern const uint16_t pikachu_excited[];
 
-void draw_header(display::Display &it, text_sensor::TextSensor *status_icon, text_sensor::TextSensor *status_text, time::RealTimeClock *ha_time, display::BaseFont *font_emoji, display::BaseFont *font_text) {
-    if (status_icon->has_state() && status_icon->state != "unknown") {
-        it.print(10, 15, font_emoji, COLOR_ON, display::TextAlign::TOP_LEFT, status_icon->state.c_str());
+void draw_header(display::Display &it, const std::string &icon, const std::string &message, time::RealTimeClock *ha_time, display::BaseFont *font_emoji, display::BaseFont *font_text) {
+    if (!icon.empty() && icon != "unknown") {
+        it.print(10, 15, font_emoji, COLOR_ON, display::TextAlign::TOP_LEFT, icon.c_str());
     }
     
-    std::string s_text = (status_text->has_state() && status_text->state != "unknown") ? status_text->state : "Klar";
+    std::string s_text = (!message.empty() && message != "unknown") ? message : "Klar";
     it.print(50, 15, font_text, COLOR_ON, display::TextAlign::TOP_LEFT, s_text.c_str());
     
     it.strftime(530, 15, font_text, COLOR_ON, display::TextAlign::TOP_RIGHT, "%d. %b  %H:%M", ha_time->now());
@@ -58,14 +58,16 @@ void draw_rounded_rect(display::Display &it, int x, int y, int w, int h, int rad
     }
 }
 
-void draw_pikachu(display::Display &it, int x, int y, const uint16_t* sprite, int width, int height) {
+void draw_pikachu(display::Display &it, int x, int y, const uint16_t* sprite, int width, int height, bool mirror_x = false) {
     for (int py = 0; py < height; py++) {
         for (int px = 0; px < width; px++) {
             uint32_t index = (py * width + px);
             uint16_t color_val = sprite[index];
             // Invert grayscale: 0xFFFF (white) -> 0, 0x0000 (black) -> 15
             uint8_t gray = 15 - (color_val / 4369); 
-            it.draw_pixel_at(x + px, y + py, Color(gray, 0, 0));
+            
+            int draw_x = mirror_x ? (x + width - 1 - px) : (x + px);
+            it.draw_pixel_at(draw_x, y + py, Color(gray, 0, 0));
         }
     }
 }
@@ -76,7 +78,7 @@ const uint16_t* select_pikachu(const std::string &icon) {
     if (icon == "✨") return pikachu_excited;
     if (icon == "☀" || icon == "🛋" || icon == "🏡") return pikachu_happy;
     // Default or alerts
-    if (icon == "🔓" || icon == "🔋") return pikachu_angry;
+    if (icon == "🔓" || icon == "🔋" || icon == "🏠") return pikachu_angry;
     
     return pikachu_happy;
 }

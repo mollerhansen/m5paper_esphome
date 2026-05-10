@@ -1,0 +1,45 @@
+alias: "M5Stack: Opdater 5-døgns vejrudsigt"
+description: "Formaterer vejrudsigt og sender til M5Paper text_sensor via input_text"
+mode: restart
+
+trigger:
+  - platform: time_pattern
+    minutes: "/15" # Opdaterer hvert 15. minut
+  - platform: homeassistant
+    event: start # Kører også ved genstart af HA
+
+action:
+  # 1. Hent daglig prognose fra din vejr-entitet
+  - service: weather.get_forecasts
+    target:
+      entity_id: weather.forecast_home
+    data:
+      type: daily
+    response_variable: daily_forecast
+
+  # 2. Formater data og gem i input_text
+  # Formatet bliver: Dag,Ikon,Max,Min|Dag,Ikon,Max,Min...
+  - service: input_text.set_value
+    target:
+      entity_id: input_text.m5paper_weather_5day
+    data:
+      value: >
+        {% set ns = namespace(days=[]) %}
+        {% set dage = {'Mon': 'Man', 'Tue': 'Tir', 'Wed': 'Ons', 'Thu': 'Tor', 'Fri': 'Fre', 'Sat': 'Lør', 'Sun': 'Søn'} %}
+        
+        {# Vi henter de næste 5 dage #}
+        {% for day in daily_forecast['weather.forecast_home']['forecast'][:5] %}
+          {% set d_eng = as_timestamp(day.datetime) | timestamp_custom('%a') %}
+          {% set d_dk = dage.get(d_eng, d_eng) %}
+          {% set icon = day.condition %}
+          {% set temp_max = day.temperature | round(0) %}
+          {% set temp_min = day.templow | round(0) %}
+          
+          {% set ns.days = ns.days + [d_dk ~ ',' ~ icon ~ ',' ~ temp_max ~ ',' ~ temp_min] %}
+        {% endfor %}
+        
+        {{ ns.days | join('|') }}
+
+# HUSK: 
+# 1. Opret input_text.m5paper_weather_5day i HA under Indstillinger -> Enheder -> Hjælpere.
+# 2. Tjek at din vejr-entitet rent faktisk hedder weather.forecast_home.

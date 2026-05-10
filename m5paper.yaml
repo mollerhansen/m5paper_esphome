@@ -61,6 +61,12 @@ spi:
 
 # --- FONTS ---
 font:
+  - file: "OpenSansEmoji.ttf"
+    id: font_calendar
+    size: 32
+    glyphs: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ 0123456789.,:;!?-+/()[]{}<>%&@#_æøåÆØÅ°♥🍻🏡🚛🍷🎉🎁🎂"
+    ignore_missing_glyphs: True
+
   - file: "FreeSans.ttf"
     id: font_small
     size: 26
@@ -69,12 +75,12 @@ font:
   - file: "gfonts://Noto Emoji"
     id: font_emoji_small
     size: 26
-    glyphs: "👕🧺🫧💧🔒🔓🚪🔋🔌🌬🏠✨🌙☁☀⛅🌧🌨🌩🌫💨"
+    glyphs: "👕🧺🫧💧🔒🔓🚪🔋🔌🌬🏠✨🌙☁☀⛅🌧🌨🌩🌫💨♥🍻🏡🍷🎂🎉🎁🚲🚗🚆🚛"
 
   - file: "gfonts://Noto Emoji"
     id: font_emoji_medium
     size: 48
-    glyphs: "🛋🛏🏡📅👕🔓🌬🏠✨🌙☁☀⛅🌧🌨🌩🌫💨"
+    glyphs: "🛋🛏🏡📅👕🔓🌬🏠✨🌙☁☀⛅🌧🌨🌩🌫💨♥🍻"
   - file: "FreeSans.ttf"
     id: font_medium
     size: 48
@@ -88,7 +94,7 @@ font:
   - file: "gfonts://Noto Emoji"
     id: font_icon
     size: 55
-    glyphs: "☀☁⛅🌧🌨🌩🌙🌫🌬💨👕🔓🏠✨"
+    glyphs: "☀☁⛅🌧🌨🌩🌙🌫🌬💨👕🔓🏠✨🏡"
 
 time:
   - platform: homeassistant
@@ -111,6 +117,18 @@ globals:
     type: bool
     restore_value: no
     initial_value: 'false'
+  - id: last_touch_time
+    type: uint32_t
+    restore_value: no
+    initial_value: '0'
+  - id: power_down_request
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  - id: show_weather_forecast
+    type: bool
+    restore_value: no
+    initial_value: 'false'
   - id: last_alert_text
     type: std::string
     restore_value: no
@@ -126,6 +144,33 @@ script:
     then:
       - lambda: 'id(big_alert_active) = true;'
       - component.update: m5paper_display
+
+  - id: run_house_power_down
+    then:
+      - homeassistant.service:
+          service: script.house_power_down
+      - lambda: 'id(power_down_request) = false;'
+      - component.update: m5paper_display
+
+  - id: power_down_timeout
+    mode: restart
+    then:
+      - delay: 1min
+      - lambda: |-
+          if (id(power_down_request)) {
+            id(power_down_request) = false;
+            id(m5paper_display).update();
+          }
+
+  - id: weather_forecast_timeout
+    mode: restart
+    then:
+      - delay: 2min
+      - lambda: |-
+          if (id(show_weather_forecast)) {
+            id(show_weather_forecast) = false;
+            id(m5paper_display).update();
+          }
 
 sensor:
   - platform: homeassistant
@@ -183,22 +228,55 @@ sensor:
 touchscreen:
   - platform: gt911
     id: m5paper_touchscreen
+    display: m5paper_display
     interrupt_pin: GPIO36
     on_touch:
       - lambda: |-
-          // Refresh screen if top right is touched
-          if (touch.x > 400 && touch.y < 100) {
-            id(m5paper_display).update();
+          // Debounce: Ignore touches within 1s of last touch
+          uint32_t now = millis();
+          if (now - id(last_touch_time) < 1000) return;
+          id(last_touch_time) = now;
+
+          ESP_LOGI("touch", "Touch at x=%d, y=%d", touch.x, touch.y);
+          
+          if (id(power_down_request)) {
+            if (touch.y > 640) {
+               id(run_house_power_down).execute();
+            } else {
+               id(power_down_request) = false;
+               id(m5paper_display).update();
+            }
+            return;
           }
-          // Dismiss alert if touched in the bottom area
+
+          // 1. Dismiss big alert if active
           if (id(big_alert_active) && touch.y > 640) {
             id(big_alert_active) = false;
             id(m5paper_display).update();
+            return;
           }
-          // Shutdown if touched in the very bottom edge
-          if (touch.y > 900) {
-            id(rtc_time).apply_sleep_duration();
-            id(m5paper_board).shutdown_main_power();
+
+          // 2. Toggle weather ON if touched in the bottom area (y > 460)
+          if (touch.y > 460) {
+            if (!id(show_weather_forecast)) {
+               id(show_weather_forecast) = true;
+               id(weather_forecast_timeout).execute();
+               id(m5paper_display).update();
+            }
+            return;
+          }
+
+          // 3. Manual cancel weather if touched anywhere else
+          if (id(show_weather_forecast)) {
+            id(show_weather_forecast) = false;
+            id(weather_forecast_timeout).stop();
+            id(m5paper_display).update();
+            return;
+          }
+
+          // 4. Refresh screen if top right is touched
+          if (touch.x > 400 && touch.y < 100) {
+            id(m5paper_display).update();
           }
 
 
@@ -222,7 +300,7 @@ text_sensor:
               if (id(status_icon).has_state()) id(last_alert_icon) = id(status_icon).state;
               id(m5paper_display).update();
             } else if (x == "Klar") {
-              // Only auto-clear if it was already "Klar" or we want it to go away
+              // Dismiss main alert box but keep text in header
               id(big_alert_active) = false;
               id(m5paper_display).update();
             }
@@ -242,6 +320,9 @@ text_sensor:
   - platform: homeassistant
     entity_id: input_text.m5paper_cal_week
     id: cal_week
+  - platform: homeassistant
+    entity_id: input_text.m5paper_weather_5day
+    id: weather_5day
 
 m5paper:
   id: m5paper_board
@@ -265,9 +346,10 @@ binary_sensor:
     id: rocker_center
     pin: {number: GPIO38, inverted: true}
     on_press:
-      - display.page.show: page_main
-      - it8951e.clear: m5paper_display
-      - component.update: m5paper_display
+      - lambda: |-
+          id(power_down_request) = true;
+          id(power_down_timeout).execute();
+          id(m5paper_display).update();
     on_click:
       min_length: 1s
       max_length: 10s
@@ -289,38 +371,46 @@ display:
       - id: page_1st_sal
         lambda: |-
           it.fill(COLOR_OFF);
-          draw_header(it, id(status_icon), id(status_text), id(ha_time), id(font_emoji_small), id(font_small));
+          draw_header(it, id(last_alert_icon), id(last_alert_text), id(ha_time), id(font_emoji_small), id(font_calendar));
           
           it.print(270, 120, id(font_emoji_medium), COLOR_ON, TextAlign::CENTER, "🛏");
           it.print(270, 190, id(font_medium), COLOR_ON, TextAlign::CENTER, "1. SAL");
           if (id(temp_1st_sal).has_state()) it.printf(270, 290, id(font_large), COLOR_ON, TextAlign::CENTER, "%.1f °C", id(temp_1st_sal).state);
-          if (id(bedroom_voc).has_state()) it.printf(270, 380, id(font_small), COLOR_ON, TextAlign::CENTER, "VOC: %.0f ppb", id(bedroom_voc).state);
+          if (id(bedroom_voc).has_state()) it.printf(270, 380, id(font_calendar), COLOR_ON, TextAlign::CENTER, "VOC: %.0f ppb", id(bedroom_voc).state);
 
-          if (id(big_alert_active)) draw_alert_zone(it, id(last_alert_icon).c_str(), id(last_alert_text).c_str(), id(font_icon), id(font_medium));
+          if (id(power_down_request)) {
+            draw_alert_zone(it, "🏠", "Skal vi Sove nu?", id(font_icon), id(font_medium));
+          } else if (id(big_alert_active)) {
+            draw_alert_zone(it, id(last_alert_icon).c_str(), id(last_alert_text).c_str(), id(font_icon), id(font_medium));
+          }
 
       # --- SIDE 2: STUEN ---
       - id: page_stuen
         lambda: |-
           it.fill(COLOR_OFF);
-          draw_header(it, id(status_icon), id(status_text), id(ha_time), id(font_emoji_small), id(font_small));
+          draw_header(it, id(last_alert_icon), id(last_alert_text), id(ha_time), id(font_emoji_small), id(font_calendar));
           
           it.print(270, 120, id(font_emoji_medium), COLOR_ON, TextAlign::CENTER, "🛋");
           it.print(270, 190, id(font_medium), COLOR_ON, TextAlign::CENTER, "STUEN");
           if (id(temp_stuen).has_state()) it.printf(270, 290, id(font_large), COLOR_ON, TextAlign::CENTER, "%.1f °C", id(temp_stuen).state);
-          if (id(co2_level).has_state()) it.printf(270, 380, id(font_small), COLOR_ON, TextAlign::CENTER, "CO2: %.0f ppm", id(co2_level).state);
+          if (id(co2_level).has_state()) it.printf(270, 380, id(font_calendar), COLOR_ON, TextAlign::CENTER, "CO2: %.0f ppm", id(co2_level).state);
 
-          if (id(big_alert_active)) draw_alert_zone(it, id(last_alert_icon).c_str(), id(last_alert_text).c_str(), id(font_icon), id(font_medium));
+          if (id(power_down_request)) {
+            draw_alert_zone(it, "🏠", "Skal vi Sove nu?", id(font_icon), id(font_medium));
+          } else if (id(big_alert_active)) {
+            draw_alert_zone(it, id(last_alert_icon).c_str(), id(last_alert_text).c_str(), id(font_icon), id(font_medium));
+          }
 
       # --- SIDE 3: UDENFOR + I DAG ---
       - id: page_main 
         lambda: |-
           it.fill(COLOR_OFF);
-          draw_header(it, id(status_icon), id(status_text), id(ha_time), id(font_emoji_small), id(font_small));
+          draw_header(it, id(last_alert_icon), id(last_alert_text), id(ha_time), id(font_emoji_small), id(font_calendar));
           
           // TEMPERATUR
           if (id(temp_outdoor).has_state()) {
             it.printf(270, 140, id(font_large), COLOR_ON, TextAlign::CENTER, "%.1f °C", id(temp_outdoor).state);
-            it.print(270, 220, id(font_small), COLOR_ON, TextAlign::CENTER, "Udendørs");
+            it.print(270, 220, id(font_calendar), COLOR_ON, TextAlign::CENTER, "Udendørs");
           }
           
           // FORECAST
@@ -341,10 +431,10 @@ display:
             
             auto fc_time = id(ha_time).now();
             ESPTime t = ESPTime::from_epoch_local(fc_time.timestamp + offset * 3600);
-            it.strftime(x, y, id(font_small), COLOR_ON, TextAlign::TOP_CENTER, "%H:00", t);
+            it.strftime(x, y, id(font_calendar), COLOR_ON, TextAlign::TOP_CENTER, "%H:00", t);
             
             it.print(x, y + 35, id(font_icon), COLOR_ON, TextAlign::TOP_CENTER, icon.c_str());
-            it.printf(x, y + 105, id(font_small), COLOR_ON, TextAlign::TOP_CENTER, "%.0f°", temp);
+            it.printf(x, y + 105, id(font_calendar), COLOR_ON, TextAlign::TOP_CENTER, "%.0f°", temp);
           };
           draw_fc(110, 300, id(icon_1h).state, id(temp_1h).state, 1);
           draw_fc(270, 300, id(icon_2h).state, id(temp_2h).state, 2);
@@ -352,30 +442,85 @@ display:
 
           it.line(30, 460, 510, 460); // Divider
 
-          // KALENDER TITEL
-          auto time = id(ha_time).now();
-          const char* dage[] = {"", "Søndag", "Mandag", "Tirsdag", "Onsdag", "Torsdag", "Fredag", "Lørdag"};
-          it.printf(270, 520, id(font_medium), COLOR_ON, TextAlign::CENTER, "%s d. %d.", dage[time.day_of_week], time.day_of_month);
-          
-          if (id(cal_today).has_state() && id(cal_today).state != "unknown") {
-            std::string str = id(cal_today).state;
-            int y = 580; 
-            size_t pos = 0;
-            while ((pos = str.find('|')) != std::string::npos) {
-              it.print(270, y, id(font_small), COLOR_ON, TextAlign::TOP_CENTER, str.substr(0, pos).c_str());
-              y += 35; 
-              str.erase(0, pos + 1);
+          if (id(show_weather_forecast)) {
+            // --- 5 DAY WEATHER VIEW ---
+            it.print(270, 480, id(font_calendar), COLOR_ON, TextAlign::TOP_CENTER, "5-døgns prognose");
+            
+            // Draw Informative Pikachu (Left side, pointing right)
+            draw_pikachu(it, 20, 780, pikachu_informative, 96, 120, false);
+
+            if (id(weather_5day).has_state() && id(weather_5day).state.length() > 5) {
+              std::string str = id(weather_5day).state;
+              int x_pos = 55;
+              size_t pos = 0;
+              int items_drawn = 0;
+              
+              while (items_drawn < 5) {
+                pos = str.find('|');
+                std::string day_data = (pos == std::string::npos) ? str : str.substr(0, pos);
+                
+                if (day_data.length() > 3) {
+                  size_t c1 = day_data.find(',');
+                  size_t c2 = (c1 != std::string::npos) ? day_data.find(',', c1 + 1) : std::string::npos;
+                  size_t c3 = (c2 != std::string::npos) ? day_data.find(',', c2 + 1) : std::string::npos;
+                  
+                  if (c1 != std::string::npos && c2 != std::string::npos && c3 != std::string::npos) {
+                    std::string d_name = day_data.substr(0, c1);
+                    std::string d_icon_key = day_data.substr(c1 + 1, c2 - c1 - 1);
+                    std::string d_max = day_data.substr(c2 + 1, c3 - c2 - 1);
+                    std::string d_min = day_data.substr(c3 + 1);
+
+                    std::string icon = "☁";
+                    if (d_icon_key == "sunny" || d_icon_key == "clear-day") icon = "☀";
+                    else if (d_icon_key == "partlycloudy") icon = "⛅";
+                    else if (d_icon_key == "rainy" || d_icon_key == "pouring") icon = "🌧";
+                    else if (d_icon_key == "snowy") icon = "🌨";
+                    
+                    it.print(x_pos, 530, id(font_calendar), COLOR_ON, TextAlign::TOP_CENTER, d_name.c_str());
+                    it.print(x_pos, 575, id(font_icon), COLOR_ON, TextAlign::TOP_CENTER, icon.c_str());
+                    it.printf(x_pos, 655, id(font_calendar), COLOR_ON, TextAlign::TOP_CENTER, "%s°", d_max.c_str());
+                    it.printf(x_pos, 695, id(font_calendar), COLOR_ON, TextAlign::TOP_CENTER, "%s°", d_min.c_str());
+                  }
+                }
+
+                if (pos == std::string::npos) break;
+                str.erase(0, pos + 1);
+                x_pos += 105;
+                items_drawn++;
+              }
+            } else {
+              it.print(270, 580, id(font_calendar), COLOR_ON, TextAlign::TOP_CENTER, "Henter vejrdata...");
             }
-            it.print(270, y, id(font_small), COLOR_ON, TextAlign::TOP_CENTER, str.c_str());
+          } else {
+            // --- CALENDAR VIEW (Default) ---
+            auto time = id(ha_time).now();
+            const char* dage[] = {"", "Søndag", "Mandag", "Tirsdag", "Onsdag", "Torsdag", "Fredag", "Lørdag"};
+            it.printf(270, 520, id(font_medium), COLOR_ON, TextAlign::CENTER, "%s d. %d.", dage[time.day_of_week], time.day_of_month);
+            
+            if (id(cal_today).has_state() && id(cal_today).state != "unknown") {
+              std::string str = id(cal_today).state;
+              int y = 580; 
+              size_t pos = 0;
+              while ((pos = str.find('|')) != std::string::npos) {
+                it.print(270, y, id(font_calendar), COLOR_ON, TextAlign::TOP_CENTER, str.substr(0, pos).c_str());
+                y += 45; // Increased spacing for size 32
+                str.erase(0, pos + 1);
+              }
+              it.print(270, y, id(font_calendar), COLOR_ON, TextAlign::TOP_CENTER, str.c_str());
+            }
           }
 
-          if (id(big_alert_active)) draw_alert_zone(it, id(last_alert_icon).c_str(), id(last_alert_text).c_str(), id(font_icon), id(font_medium));
+          if (id(power_down_request)) {
+            draw_alert_zone(it, "🏠", "Skal vi Sove nu?", id(font_icon), id(font_medium));
+          } else if (id(big_alert_active)) {
+            draw_alert_zone(it, id(last_alert_icon).c_str(), id(last_alert_text).c_str(), id(font_icon), id(font_medium));
+          }
 
       # --- SIDE 4: UGENS KALENDER ---
       - id: page_cal_week
         lambda: |-
           it.fill(COLOR_OFF);
-          draw_header(it, id(status_icon), id(status_text), id(ha_time), id(font_emoji_small), id(font_small));
+          draw_header(it, id(last_alert_icon), id(last_alert_text), id(ha_time), id(font_emoji_small), id(font_calendar));
           
           it.print(270, 120, id(font_emoji_medium), COLOR_ON, TextAlign::CENTER, "📅");
           auto tomorrow = ESPTime::from_epoch_local(id(ha_time).now().timestamp + 86400);
@@ -387,14 +532,18 @@ display:
             int y = 290; 
             size_t pos = 0;
             while ((pos = str.find('|')) != std::string::npos) {
-              it.print(20, y, id(font_small), COLOR_ON, TextAlign::TOP_LEFT, str.substr(0, pos).c_str());
-              y += 40; 
+              it.print(20, y, id(font_calendar), COLOR_ON, TextAlign::TOP_LEFT, str.substr(0, pos).c_str());
+              y += 45; // Increased spacing for size 32
               str.erase(0, pos + 1);
             }
-            it.print(20, y, id(font_small), COLOR_ON, TextAlign::TOP_LEFT, str.c_str());
+            it.print(20, y, id(font_calendar), COLOR_ON, TextAlign::TOP_LEFT, str.c_str());
           }
 
-          if (id(big_alert_active)) draw_alert_zone(it, id(last_alert_icon).c_str(), id(last_alert_text).c_str(), id(font_icon), id(font_medium));
+          if (id(power_down_request)) {
+            draw_alert_zone(it, "🏠", "Skal vi Sove nu?", id(font_icon), id(font_medium));
+          } else if (id(big_alert_active)) {
+            draw_alert_zone(it, id(last_alert_icon).c_str(), id(last_alert_text).c_str(), id(font_icon), id(font_medium));
+          }
 
 
 interval:

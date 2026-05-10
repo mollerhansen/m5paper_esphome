@@ -59,8 +59,7 @@ action:
             {% set d_eng = as_timestamp(event.start) | timestamp_custom('%a') %}
             {% set d_dk = dage.get(d_eng, d_eng) %}
             {% set dato = as_timestamp(event.start) | timestamp_custom('%d/%m') %}
-            {% set tid = as_timestamp(event.start) | timestamp_custom('%H:%M') %}
-            {% set ns.lines = ns.lines + [d_dk ~ ' ' ~ dato ~ ' ' ~ tid ~ ': ' ~ event.summary] %}
+            {% set ns.lines = ns.lines + [d_dk ~ ' ' ~ dato ~ ': ' ~ event.summary] %}
           {% endfor %}
           {{ ns.lines | join('|') }}
         {% endif %}

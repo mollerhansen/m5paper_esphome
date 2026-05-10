@@ -467,3 +467,25 @@ Result type: string
 This template listens for the following state changed events:
 
 Domain: sensor
+
+Navn: House Power Down
+Entity_ID: script.house_power_down
+Status: off
+---
+
+Navn: m5paper_status_icon
+Entity_ID: input_text.m5paper_status_icon
+Status: 🏠
+---
+Navn: m5paper_status_text
+Entity_ID: input_text.m5paper_status_text
+Status: Klar
+---
+Navn: m5paper_cal_today
+Entity_ID: input_text.m5paper_cal_today
+Status: 00:00 Mors dag ♥️
+---
+Navn: m5paper_cal_week
+Entity_ID: input_text.m5paper_cal_week
+Status: Ons 13/05 00:00: Kursus akruarforeningen|Ons 13/05 08:00: Brus 10 år 🍻|Tor 14/05 00:00: Kolonihaven 🏡|Tor 14/05 07:00: Storskrald og pap 🚛
+---

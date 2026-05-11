@@ -25,12 +25,15 @@ extern const int PIKA_WIDTH_EXCITED;
 extern const int PIKA_HEIGHT_EXCITED;
 extern const uint16_t pikachu_excited[];
 
-void draw_header(display::Display &it, const std::string &icon, const std::string &message, time::RealTimeClock *ha_time, display::BaseFont *font_emoji, display::BaseFont *font_text) {
+void draw_header(display::Display &it, const std::string &icon, const std::string &message, const std::string &update_time, time::RealTimeClock *ha_time, display::BaseFont *font_emoji, display::BaseFont *font_text) {
     if (!icon.empty() && icon != "unknown") {
         it.print(10, 15, font_emoji, COLOR_ON, display::TextAlign::TOP_LEFT, icon.c_str());
     }
     
     std::string s_text = (!message.empty() && message != "unknown") ? message : "Klar";
+    if (!update_time.empty() && s_text != "Klar") {
+        s_text += " " + update_time;
+    }
     it.print(50, 15, font_text, COLOR_ON, display::TextAlign::TOP_LEFT, s_text.c_str());
     
     it.strftime(530, 15, font_text, COLOR_ON, display::TextAlign::TOP_RIGHT, "%d. %b  %H:%M", ha_time->now());
@@ -109,7 +112,23 @@ void draw_alert_zone(display::Display &it, const char* icon, const char* message
 
     // Text inside bubble
     it.print(bubble_x + bubble_w/2, bubble_y + 30, font_emoji, COLOR_ON, display::TextAlign::TOP_CENTER, icon);
-    it.print(bubble_x + bubble_w/2, bubble_y + 110, font_text, COLOR_ON, display::TextAlign::TOP_CENTER, message);
+    
+    std::string msg_str = message;
+    if (msg_str.length() > 20) {
+        size_t split_pos = msg_str.find(' ', msg_str.length() / 2 - 5);
+        if (split_pos == std::string::npos) split_pos = msg_str.find(' ');
+        
+        if (split_pos != std::string::npos) {
+            std::string line1 = msg_str.substr(0, split_pos);
+            std::string line2 = msg_str.substr(split_pos + 1);
+            it.print(bubble_x + bubble_w/2, bubble_y + 100, font_text, COLOR_ON, display::TextAlign::TOP_CENTER, line1.c_str());
+            it.print(bubble_x + bubble_w/2, bubble_y + 150, font_text, COLOR_ON, display::TextAlign::TOP_CENTER, line2.c_str());
+        } else {
+            it.print(bubble_x + bubble_w/2, bubble_y + 110, font_text, COLOR_ON, display::TextAlign::TOP_CENTER, message);
+        }
+    } else {
+        it.print(bubble_x + bubble_w/2, bubble_y + 110, font_text, COLOR_ON, display::TextAlign::TOP_CENTER, message);
+    }
 
     // Draw Pikachu (bottom right)
     draw_pikachu(it, 400, 780, pika_sprite, 96, 120);

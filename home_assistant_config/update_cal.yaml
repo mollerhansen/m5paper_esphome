@@ -14,7 +14,8 @@ action:
     target:
       entity_id: calendar.familie
     data:
-      end_date_time: "{{ today_at('23:59:00') }}"
+      start_date_time: "{{ today_at('00:00:00') }}"
+      end_date_time: "{{ today_at('23:59:59') }}"
     response_variable: agenda_idag
 
   - service: input_text.set_value
@@ -22,7 +23,11 @@ action:
       entity_id: input_text.m5paper_cal_today
     data:
       value: >
-        {% set events = agenda_idag['calendar.familie']['events'] %}
+        {% set agenda = agenda_idag.get('calendar.familie', {}) %}
+        {% set all_events = agenda.get('events', []) %}
+        {# Filter to only show events that haven't ended yet #}
+        {% set events = all_events | selectattr('end', 'greaterthan', now().isoformat()) | list %}
+        
         {% if events | length == 0 %}
           Ingen flere aftaler i dag
         {% else %}
@@ -49,7 +54,8 @@ action:
       entity_id: input_text.m5paper_cal_week
     data:
       value: >
-        {% set events = agenda_uge['calendar.familie']['events'] %}
+        {% set agenda = agenda_uge.get('calendar.familie', {}) %}
+        {% set events = agenda.get('events', []) %}
         {% if events | length == 0 %}
           Ingen aftaler de næste 5 dage
         {% else %}

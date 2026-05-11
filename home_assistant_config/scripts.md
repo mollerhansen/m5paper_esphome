@@ -22,10 +22,13 @@ house_power_down:
         entity_id: input_text.m5paper_status_text
         value: "Slukker huset..."
 
-    # 2. Turn off all lights
+    # 2. Turn off lights in living room floor (Stue, Køkken, Bad)
     - action: light.turn_off
-      data:
-        entity_id: all 
+      target:
+        area_id:
+          - stue
+          - kokken
+          - bad_stue # Adjust area IDs as needed for your setup
 
     # 3. Ensure Kælderdør is locked
     - if:

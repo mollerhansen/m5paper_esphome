@@ -4,55 +4,52 @@ This document outlines the identified issues and proposed architectural/function
 
 ## 1. Identified Issues & Bugs
 
-### 1.1 Calendar Separator Mismatch
-- **Issue**: `update_cal.yaml` (Home Assistant) sends calendar events separated by `\n`, but `m5paper.yaml` (ESPHome) attempts to split the string using `|`.
-- **Impact**: Calendar events do not render correctly on the display.
-- **Fix**: Align both configurations to use `\n` and simplify the ESPHome lambda to handle newlines natively if supported, or fix the splitting logic.
+### 1.1 Godnat status (FIXED)
+- **Status**: Fixed in `m5paper.yaml` and `display_helpers.h`.
+- **Change**: Shortened "Alt er Slukket. Godnat." to "Godnat" and added timestamp in parentheses.
 
-### 1.2 Redundant Display Lambda Code
-- **Issue**: The Header (Status icon, text, time, and line divider) is duplicated across all 4 pages in `m5paper.yaml`.
-- **Impact**: Harder to maintain; changes to the header must be applied in 4 places.
-- **Fix**: Move shared drawing logic into a C++ header file (`display_helpers.h`) and call it from the YAML lambdas.
-- **Status**: **Completed**. Logic moved to `draw_header` in `display_helpers.h`.
+### 1.2 Godnat Lys styring kun på 1. sal (FIXED)
+- **Status**: Fixed in `home_assistant_config/scripts.md`.
+- **Change**: Limited `light.turn_off` in `house_power_down` script to areas: `stue`, `kokken`, and `bad_stue`.
 
-## 2. Hardware Utilization Improvements
+### 1.3 Kalenderen for idag viser igår (FIXED)
+- **Status**: Fixed in `home_assistant_config/update_cal.yaml`.
+- **Change**: Explicitly defined start/end times for today's events and added filtering to only show upcoming/ongoing events. Used safer template access to ensure the text is updated/cleared even when no events are found.
 
-### 2.1 Environmental Sensing (SHT3xD)
-- **Status**: **Completed**. SHT3xD configured and reporting.
+## 2. Improvements
 
-### 2.2 Battery Monitoring
-- **Status**: **Completed**. ADC sensor implemented on GPIO35 with 2.0 multiplier.
+### 2.1 Timeouts too long (FIXED)
+- **Status**: Fixed in `m5paper.yaml`.
+- **Change**: Reduced `power_down_timeout` and `weather_forecast_timeout` from several minutes to 30s.
 
-### 2.3 Power Management & Deep Sleep
-- **Status**: **Partially Completed**. RTC sync and shutdown actions implemented. Shutdown mapped to rocker center hold and bottom touch edge.
+### 2.2 Taleboble tekster for lange (FIXED)
+- **Status**: Fixed in `display_helpers.h`.
+- **Change**: Implemented automatic line splitting for messages longer than 20 characters in `draw_alert_zone`.
 
-## 3. UI/UX Refinement
+### 2.3 Sort streg i højre side den sure pikachu
+Der er en sort streg langs højrekanten af den sure pikachu.
+- **Action**: Investigated `pikachu_angry.h`. Found trailing black pixels at the end of the data array. Need to clean up the image data.
 
-### 3.1 Touchscreen Integration
-- **Proposal**: Re-enable the `gt911` touchscreen. Even if the rocker is the primary nav, touch "hotspots" can be used for:
-    - Forcing a display refresh.
-    - Toggling power/sleep.
-    - Quick-switching to the Main page.
-- **Status**: **Completed**. GT911 integrated with touch zones for refresh, dismiss, and shutdown.
+### 3. Etage Rum styring (PLANNED)
+Stuen er en etage som består af Køkken, bad og stue. 1. sal består Af Georgs værelse, Eskes værelse, Soveværelse og Badeværelse.
 
-### 3.2 Dynamic Weather Icons
-- **Status**: **Completed**. `draw_fc` expanded with comprehensive state mapping.
+### 3.1 Tilføje varme styring i rum
+Vi skal kunne justere varmen i de rum der er smart termostater med en touch kontrol knap (-, on/off, +)
+Vi skal også finde en god måde at slukke alle termostater i stuen når vi lufter ud. 
 
-### 3.3 Pikachu som hjælper
-- **Proposal**: Alarm vinduet i bunden skal være en talebobble med Pikachu i forgrunden. Alt efter alarm skal pikachu være glad, bedrevidende, bekymret, træt..
-- **Status**: **Completed**. 5 emotions implemented: Happy, Angry, Informative, Sleep, and Excited. Logic in `select_pikachu` handles automatic switching based on status icons. Color inversion fixed.
+### 3.2 Tilføje lys styring i rum
+Vi skal kunne justere lyset i de rum der har smart pøre med en touch kontrol knap (down-arrow, on/off,up-arrow)
 
-### 3.4 fjerne alarmvinduet
-- **Proposal**: brug touch interfacet til at dismisse alarmvinduet. 
-- **Status**: **Completed**. Touching the bottom area (y > 640) dismisses the alert.
-### 3.5 easter egg
-- **Proposal**: Få pikachu til at dukke frem med forskellige udsagn og udtryk tilfældigt. Evt tilføjer vi easter eggs i update yaml. De skal også dukke frem og frosvinde ved tryk i bunden af skærmen. 
+### 3.3 Tidsstempler i statusbaren (FIXED)
+- **Status**: Fixed in `display_helpers.h`.
+- **Change**: Added `strftime` to the header and appended the last update time to the status message.
 
-## 4. Flere Ideer
+---
 
-### 4.1 fler-dags prognose 
-- **Proposal**: Vis 5 dags prognose i ugekalenderen
+## Proposed Next Steps
 
-### 4.2 Device batterier 
-
-- **Proposal**: Vi det batterier der er løbet tør. Måske lave en hel side under kalender siden med batteri statuser
+1. **Fix Pikachu Artifact (2.3)**: Clean up the last row of `pikachu_angry.h` to remove the black pixels.
+2. **Implement Room Control UI (3.1, 3.2)**: 
+   - Design a sub-page or overlay for heat/light control.
+   - Use `touchscreen` regions to detect +/- and on/off.
+   - Use `homeassistant.service` calls to update states in HA.

@@ -137,6 +137,10 @@ globals:
     type: std::string
     restore_value: no
     initial_value: '""'
+  - id: last_status_time
+    type: std::string
+    restore_value: no
+    initial_value: '""'
 
 script:
   - id: trigger_big_alert
@@ -155,7 +159,7 @@ script:
   - id: power_down_timeout
     mode: restart
     then:
-      - delay: 1min
+      - delay: 30s
       - lambda: |-
           if (id(power_down_request)) {
             id(power_down_request) = false;
@@ -165,7 +169,7 @@ script:
   - id: weather_forecast_timeout
     mode: restart
     then:
-      - delay: 2min
+      - delay: 30s
       - lambda: |-
           if (id(show_weather_forecast)) {
             id(show_weather_forecast) = false;
@@ -294,12 +298,15 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            if (x != "Klar" && x != "unknown" && !x.empty()) {
+            std::string msg = x;
+            if (msg == "Alt er Slukket. Godnat.") msg = "Godnat";
+            if (msg != "Klar" && msg != "unknown" && !msg.empty()) {
               id(big_alert_active) = true;
-              id(last_alert_text) = x;
+              id(last_alert_text) = msg;
+              id(last_status_time) = id(ha_time).now().strftime("(%H:%M)");
               if (id(status_icon).has_state()) id(last_alert_icon) = id(status_icon).state;
               id(m5paper_display).update();
-            } else if (x == "Klar") {
+            } else if (msg == "Klar") {
               // Dismiss main alert box but keep text in header
               id(big_alert_active) = false;
               id(m5paper_display).update();
@@ -371,7 +378,7 @@ display:
       - id: page_1st_sal
         lambda: |-
           it.fill(COLOR_OFF);
-          draw_header(it, id(last_alert_icon), id(last_alert_text), id(ha_time), id(font_emoji_small), id(font_calendar));
+          draw_header(it, id(last_alert_icon), id(last_alert_text), id(last_status_time), id(ha_time), id(font_emoji_small), id(font_calendar));
           
           it.print(270, 120, id(font_emoji_medium), COLOR_ON, TextAlign::CENTER, "🛏");
           it.print(270, 190, id(font_medium), COLOR_ON, TextAlign::CENTER, "1. SAL");
@@ -388,7 +395,7 @@ display:
       - id: page_stuen
         lambda: |-
           it.fill(COLOR_OFF);
-          draw_header(it, id(last_alert_icon), id(last_alert_text), id(ha_time), id(font_emoji_small), id(font_calendar));
+          draw_header(it, id(last_alert_icon), id(last_alert_text), id(last_status_time), id(ha_time), id(font_emoji_small), id(font_calendar));
           
           it.print(270, 120, id(font_emoji_medium), COLOR_ON, TextAlign::CENTER, "🛋");
           it.print(270, 190, id(font_medium), COLOR_ON, TextAlign::CENTER, "STUEN");
@@ -405,7 +412,7 @@ display:
       - id: page_main 
         lambda: |-
           it.fill(COLOR_OFF);
-          draw_header(it, id(last_alert_icon), id(last_alert_text), id(ha_time), id(font_emoji_small), id(font_calendar));
+          draw_header(it, id(last_alert_icon), id(last_alert_text), id(last_status_time), id(ha_time), id(font_emoji_small), id(font_calendar));
           
           // TEMPERATUR
           if (id(temp_outdoor).has_state()) {
@@ -520,7 +527,7 @@ display:
       - id: page_cal_week
         lambda: |-
           it.fill(COLOR_OFF);
-          draw_header(it, id(last_alert_icon), id(last_alert_text), id(ha_time), id(font_emoji_small), id(font_calendar));
+          draw_header(it, id(last_alert_icon), id(last_alert_text), id(last_status_time), id(ha_time), id(font_emoji_small), id(font_calendar));
           
           it.print(270, 120, id(font_emoji_medium), COLOR_ON, TextAlign::CENTER, "📅");
           auto tomorrow = ESPTime::from_epoch_local(id(ha_time).now().timestamp + 86400);

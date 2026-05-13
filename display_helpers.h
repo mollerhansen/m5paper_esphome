@@ -137,3 +137,26 @@ void draw_alert_zone(display::Display &it, const char* icon, const char* message
 void draw_parked_alert(display::Display &it, int x, int y, const char* icon, display::BaseFont *font_emoji) {
     it.print(x, y, font_emoji, COLOR_ON, display::TextAlign::TOP_LEFT, icon);
 }
+
+void draw_button(display::Display &it, int x, int y, int w, int h, const char* label, display::BaseFont *font) {
+    draw_rounded_rect(it, x, y, w, h, 10, COLOR_ON, false);
+    it.print(x + w/2, y + h/2, font, COLOR_ON, display::TextAlign::CENTER, label);
+}
+
+void draw_climate_row(display::Display &it, int y, const char* name, float current, float target, const char* mode, display::BaseFont *font_small, display::BaseFont *font_medium) {
+    it.printf(20, y, font_small, COLOR_ON, display::TextAlign::TOP_LEFT, "%s: %.1f°C", name, current);
+    
+    // Draw Minus Button (Larger: 130x80)
+    draw_button(it, 20, y + 40, 130, 80, "-", font_medium);
+    
+    // Target Temp (No arrow)
+    it.printf(270, y + 40, font_medium, COLOR_ON, display::TextAlign::TOP_CENTER, "%.1f°", target);
+    
+    // Draw Plus Button (Larger: 130x80)
+    draw_button(it, 390, y + 40, 130, 80, "+", font_medium);
+    
+    std::string mode_str = (strcmp(mode, "heat") == 0 || strcmp(mode, "heating") == 0) ? "ON" : "OFF";
+    it.printf(270, y + 125, font_small, COLOR_ON, display::TextAlign::TOP_CENTER, "Mode: %s", mode_str.c_str());
+    
+    it.line(20, y + 165, 520, y + 165, COLOR_ON);
+}

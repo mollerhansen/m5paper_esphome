@@ -75,7 +75,7 @@ font:
   - file: "gfonts://Noto Emoji"
     id: font_emoji_small
     size: 26
-    glyphs: "👕🧺🫧💧🔒🔓🚪🔋🔌🌬🏠✨🌙☁☀⛅🌧🌨🌩🌫💨♥🍻🏡🍷🎂🎉🎁🚲🚗🚆🚛"
+    glyphs: "👕🧺🫧💧🔒🔓🔋🔌🌬🏠✨🌙☁☀⛅🌧🌨🌩🌫💨♥🍻🏡🍷🎂🎉🎁🚲🚗🚆🚛"
 
   - file: "gfonts://Noto Emoji"
     id: font_emoji_medium
@@ -141,6 +141,18 @@ globals:
     type: std::string
     restore_value: no
     initial_value: '""'
+  - id: target_temp_stue
+    type: float
+    restore_value: no
+    initial_value: '21.0'
+  - id: target_temp_kokken
+    type: float
+    restore_value: no
+    initial_value: '21.0'
+  - id: target_temp_bad
+    type: float
+    restore_value: no
+    initial_value: '21.0'
 
 script:
   - id: trigger_big_alert
@@ -155,6 +167,39 @@ script:
           service: script.house_power_down
       - lambda: 'id(power_down_request) = false;'
       - component.update: m5paper_display
+
+  - id: run_ventilate_stuen
+    then:
+      - homeassistant.service:
+          service: script.m5paper_ventilate_stuen
+      - lambda: 'id(big_alert_active) = true;'
+      - lambda: 'id(last_alert_text) = "Lufter ud i stuen";'
+      - lambda: 'id(last_alert_icon) = "🌬";'
+      - component.update: m5paper_display
+
+  - id: set_climate_temp
+    mode: parallel
+    parameters:
+      entity_id: string
+      target_temp: float
+    then:
+      - homeassistant.service:
+          service: script.m5paper_set_temp
+          data:
+            entity_id: !lambda "return entity_id;"
+            target_temp: !lambda "return to_string(target_temp);"
+
+  - id: toggle_climate_mode
+    mode: parallel
+    parameters:
+      entity_id: string
+      current_mode: string
+    then:
+      - homeassistant.service:
+          service: script.m5paper_toggle_climate
+          data:
+            entity_id: !lambda "return entity_id;"
+            current_mode: !lambda "return current_mode;"
 
   - id: power_down_timeout
     mode: restart
@@ -191,10 +236,42 @@ sensor:
   - platform: homeassistant
     entity_id: sensor.bedroom_volatile_organic_compounds_parts
     id: bedroom_voc
+
+  # --- Climate Sensors ---
   - platform: homeassistant
     entity_id: climate.stuen_radiators
     attribute: current_temperature
     id: temp_stuen
+  - platform: homeassistant
+    entity_id: climate.stuen_radiators
+    attribute: temperature
+    id: climate_stue_target
+    on_value:
+      then:
+        - lambda: 'id(target_temp_stue) = x;'
+  - platform: homeassistant
+    entity_id: climate.radiator_kokken
+    attribute: current_temperature
+    id: temp_kokken
+  - platform: homeassistant
+    entity_id: climate.radiator_kokken
+    attribute: temperature
+    id: climate_kokken_target
+    on_value:
+      then:
+        - lambda: 'id(target_temp_kokken) = x;'
+  - platform: homeassistant
+    entity_id: climate.gulvvarme_termostat
+    attribute: current_temperature
+    id: temp_bad
+  - platform: homeassistant
+    entity_id: climate.gulvvarme_termostat
+    attribute: temperature
+    id: climate_bad_target
+    on_value:
+      then:
+        - lambda: 'id(target_temp_bad) = x;'
+
   - platform: homeassistant
     entity_id: weather.forecast_home
     attribute: temperature
@@ -260,6 +337,38 @@ touchscreen:
             return;
           }
 
+          // --- Climate Controls (Only on page_stuen) ---
+          if (id(m5paper_display).get_active_page() == id(page_stuen)) {
+            // Ventilate Button (Bottom left)
+            if (touch.y > 800 && touch.x < 300) {
+              id(run_ventilate_stuen).execute();
+              return;
+            }
+
+            auto handle_climate = [&](const char* entity, float& target, const std::string& mode, int y_start) {
+              if (touch.y >= y_start && touch.y <= y_start + 165) {
+                if (touch.x < 160) {
+                  target -= 0.5;
+                  id(set_climate_temp).execute(entity, target);
+                  id(m5paper_display).update();
+                } else if (touch.x > 380) {
+                  target += 0.5;
+                  id(set_climate_temp).execute(entity, target);
+                  id(m5paper_display).update();
+                } else if (touch.x > 160 && touch.x < 380 && touch.y > y_start + 100) {
+                  id(toggle_climate_mode).execute(entity, mode);
+                  id(m5paper_display).update();
+                }
+                return true;
+              }
+              return false;
+            };
+
+            if (handle_climate("climate.stuen_radiators", id(target_temp_stue), id(climate_stue_mode).state, 260)) return;
+            if (handle_climate("climate.radiator_kokken", id(target_temp_kokken), id(climate_kokken_mode).state, 435)) return;
+            if (handle_climate("climate.gulvvarme_termostat", id(target_temp_bad), id(climate_bad_mode).state, 610)) return;
+          }
+
           // 2. Toggle weather ON if touched in the bottom area (y > 460)
           if (touch.y > 460) {
             if (!id(show_weather_forecast)) {
@@ -288,6 +397,16 @@ text_sensor:
   - platform: homeassistant
     entity_id: sensor.kaelderdor_operator
     id: lock_operator
+
+  - platform: homeassistant
+    entity_id: climate.stuen_radiators
+    id: climate_stue_mode
+  - platform: homeassistant
+    entity_id: climate.radiator_kokken
+    id: climate_kokken_mode
+  - platform: homeassistant
+    entity_id: climate.gulvvarme_termostat
+    id: climate_bad_mode
 
   - platform: homeassistant
     entity_id: input_text.m5paper_status_icon
@@ -399,8 +518,18 @@ display:
           
           it.print(270, 120, id(font_emoji_medium), COLOR_ON, TextAlign::CENTER, "🛋");
           it.print(270, 190, id(font_medium), COLOR_ON, TextAlign::CENTER, "STUEN");
-          if (id(temp_stuen).has_state()) it.printf(270, 290, id(font_large), COLOR_ON, TextAlign::CENTER, "%.1f °C", id(temp_stuen).state);
-          if (id(co2_level).has_state()) it.printf(270, 380, id(font_calendar), COLOR_ON, TextAlign::CENTER, "CO2: %.0f ppm", id(co2_level).state);
+          
+          draw_climate_row(it, 260, "Stue", id(temp_stuen).state, id(target_temp_stue), id(climate_stue_mode).state.c_str(), id(font_small), id(font_medium));
+          draw_climate_row(it, 435, "Køkken", id(temp_kokken).state, id(target_temp_kokken), id(climate_kokken_mode).state.c_str(), id(font_small), id(font_medium));
+          draw_climate_row(it, 610, "Bad", id(temp_bad).state, id(target_temp_bad), id(climate_bad_mode).state.c_str(), id(font_small), id(font_medium));
+
+          // Footer - Ventilate & CO2
+          if (!id(big_alert_active) && !id(power_down_request)) {
+            draw_button(it, 20, 840, 260, 100, "🌬 Luft ud", id(font_medium));
+            if (id(co2_level).has_state()) {
+               it.printf(300, 875, id(font_calendar), COLOR_ON, TextAlign::TOP_LEFT, "CO2: %.0f ppm", id(co2_level).state);
+            }
+          }
 
           if (id(power_down_request)) {
             draw_alert_zone(it, "🏠", "Skal vi Sove nu?", id(font_icon), id(font_medium));

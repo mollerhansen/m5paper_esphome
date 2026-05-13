@@ -26,18 +26,23 @@ This document outlines the identified issues and proposed architectural/function
 - **Status**: Fixed in `display_helpers.h`.
 - **Change**: Implemented automatic line splitting for messages longer than 20 characters in `draw_alert_zone`.
 
-### 2.3 Sort streg i højre side den sure pikachu
+### 2.3 Sort streg i højre side den sure pikachu (FIXED)
 Der er en sort streg langs højrekanten af den sure pikachu.
-- **Action**: Investigated `pikachu_angry.h`. Found trailing black pixels at the end of the data array. Need to clean up the image data.
+- **Status**: Fixed in `helper_assistant/pikachu_angry.h`.
+- **Change**: Replaced trailing black pixels (0x0000) at the end of the image data array with white pixels (0xffff).
 
-### 3. Etage Rum styring (PLANNED)
+### 3. Etage Rum styring (FIXED)
 Stuen er en etage som består af Køkken, bad og stue. 1. sal består Af Georgs værelse, Eskes værelse, Soveværelse og Badeværelse.
 
-### 3.1 Tilføje varme styring i rum
-Vi skal kunne justere varmen i de rum der er smart termostater med en touch kontrol knap (-, on/off, +)
-Vi skal også finde en god måde at slukke alle termostater i stuen når vi lufter ud. 
+### 3.1 Tilføje varme styring i rum (FIXED)
+- **Status**: Fixed in `m5paper.yaml` and `display_helpers.h`.
+- **Change**: Added touch controls for `Stue`, `Køkken`, and `Bad` on the `STUEN` page.
+- **UI Refinement**: Enlarged `+` and `-` buttons (130x80) and removed the `->` arrow for a cleaner look.
+- **Ventilation**: Added a prominent "🌬 Luft ud" button at the bottom of the screen.
+- **Context**: Displayed the current CO2 level next to the Ventilate button to help decide when to air out.
+- **Integration**: Requires HA scripts defined in `home_assistant_config/climate_scripts.md`.
 
-### 3.2 Tilføje lys styring i rum
+### 3.2 Tilføje lys styring i rum (PLANNED)
 Vi skal kunne justere lyset i de rum der har smart pøre med en touch kontrol knap (down-arrow, on/off,up-arrow)
 
 ### 3.3 Tidsstempler i statusbaren (FIXED)

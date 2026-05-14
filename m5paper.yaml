@@ -133,6 +133,10 @@ globals:
     type: std::string
     restore_value: no
     initial_value: '""'
+  - id: last_header_text
+    type: std::string
+    restore_value: no
+    initial_value: '""'
   - id: last_alert_icon
     type: std::string
     restore_value: no
@@ -172,9 +176,11 @@ script:
     then:
       - homeassistant.service:
           service: script.m5paper_ventilate_stuen
-      - lambda: 'id(big_alert_active) = true;'
-      - lambda: 'id(last_alert_text) = "Lufter ud i stuen";'
-      - lambda: 'id(last_alert_icon) = "🌬";'
+      - lambda: |-
+          id(big_alert_active) = true;
+          id(last_header_text) = "Lufter ud";
+          id(last_alert_text) = "Lufter ud i stuen";
+          id(last_alert_icon) = "🌬";
       - component.update: m5paper_display
 
   - id: set_climate_temp
@@ -419,14 +425,33 @@ text_sensor:
         - lambda: |-
             std::string msg = x;
             if (msg == "Alt er Slukket. Godnat.") msg = "Godnat";
+            
             if (msg != "Klar" && msg != "unknown" && !msg.empty()) {
+              size_t sep = msg.find('|');
+              if (sep != std::string::npos) {
+                std::string header = msg.substr(0, sep);
+                std::string alert = msg.substr(sep + 1);
+                
+                // Trim whitespace
+                header.erase(header.find_last_not_of(" \t\n\r") + 1);
+                header.erase(0, header.find_first_not_of(" \t\n\r"));
+                alert.erase(alert.find_last_not_of(" \t\n\r") + 1);
+                alert.erase(0, alert.find_first_not_of(" \t\n\r"));
+                
+                id(last_header_text) = header;
+                id(last_alert_text) = alert;
+              } else {
+                id(last_header_text) = msg;
+                id(last_alert_text) = msg;
+              }
+              
               id(big_alert_active) = true;
-              id(last_alert_text) = msg;
               id(last_status_time) = id(ha_time).now().strftime("(%H:%M)");
               if (id(status_icon).has_state()) id(last_alert_icon) = id(status_icon).state;
               id(m5paper_display).update();
             } else if (msg == "Klar") {
-              // Dismiss main alert box but keep text in header
+              id(last_header_text) = "";
+              id(last_alert_icon) = "🏠";
               id(big_alert_active) = false;
               id(m5paper_display).update();
             }
@@ -497,7 +522,7 @@ display:
       - id: page_1st_sal
         lambda: |-
           it.fill(COLOR_OFF);
-          draw_header(it, id(last_alert_icon), id(last_alert_text), id(last_status_time), id(ha_time), id(font_emoji_small), id(font_calendar));
+          draw_header(it, id(last_alert_icon), id(last_header_text), id(last_status_time), id(ha_time), id(font_emoji_small), id(font_calendar));
           
           it.print(270, 120, id(font_emoji_medium), COLOR_ON, TextAlign::CENTER, "🛏");
           it.print(270, 190, id(font_medium), COLOR_ON, TextAlign::CENTER, "1. SAL");
@@ -505,16 +530,16 @@ display:
           if (id(bedroom_voc).has_state()) it.printf(270, 380, id(font_calendar), COLOR_ON, TextAlign::CENTER, "VOC: %.0f ppb", id(bedroom_voc).state);
 
           if (id(power_down_request)) {
-            draw_alert_zone(it, "🏠", "Skal vi Sove nu?", id(font_icon), id(font_medium));
+            draw_alert_zone(it, "🏠", "Skal vi Sove?", "Godnat!", id(font_icon), id(font_medium));
           } else if (id(big_alert_active)) {
-            draw_alert_zone(it, id(last_alert_icon).c_str(), id(last_alert_text).c_str(), id(font_icon), id(font_medium));
+            draw_alert_zone(it, id(last_alert_icon).c_str(), id(last_header_text).c_str(), id(last_alert_text).c_str(), id(font_icon), id(font_medium));
           }
 
       # --- SIDE 2: STUEN ---
       - id: page_stuen
         lambda: |-
           it.fill(COLOR_OFF);
-          draw_header(it, id(last_alert_icon), id(last_alert_text), id(last_status_time), id(ha_time), id(font_emoji_small), id(font_calendar));
+          draw_header(it, id(last_alert_icon), id(last_header_text), id(last_status_time), id(ha_time), id(font_emoji_small), id(font_calendar));
           
           it.print(270, 120, id(font_emoji_medium), COLOR_ON, TextAlign::CENTER, "🛋");
           it.print(270, 190, id(font_medium), COLOR_ON, TextAlign::CENTER, "STUEN");
@@ -532,16 +557,16 @@ display:
           }
 
           if (id(power_down_request)) {
-            draw_alert_zone(it, "🏠", "Skal vi Sove nu?", id(font_icon), id(font_medium));
+            draw_alert_zone(it, "🏠", "Skal vi Sove?", "Godnat!", id(font_icon), id(font_medium));
           } else if (id(big_alert_active)) {
-            draw_alert_zone(it, id(last_alert_icon).c_str(), id(last_alert_text).c_str(), id(font_icon), id(font_medium));
+            draw_alert_zone(it, id(last_alert_icon).c_str(), id(last_header_text).c_str(), id(last_alert_text).c_str(), id(font_icon), id(font_medium));
           }
 
       # --- SIDE 3: UDENFOR + I DAG ---
       - id: page_main 
         lambda: |-
           it.fill(COLOR_OFF);
-          draw_header(it, id(last_alert_icon), id(last_alert_text), id(last_status_time), id(ha_time), id(font_emoji_small), id(font_calendar));
+          draw_header(it, id(last_alert_icon), id(last_header_text), id(last_status_time), id(ha_time), id(font_emoji_small), id(font_calendar));
           
           // TEMPERATUR
           if (id(temp_outdoor).has_state()) {
@@ -647,16 +672,16 @@ display:
           }
 
           if (id(power_down_request)) {
-            draw_alert_zone(it, "🏠", "Skal vi Sove nu?", id(font_icon), id(font_medium));
+            draw_alert_zone(it, "🏠", "Skal vi Sove?", "Godnat!", id(font_icon), id(font_medium));
           } else if (id(big_alert_active)) {
-            draw_alert_zone(it, id(last_alert_icon).c_str(), id(last_alert_text).c_str(), id(font_icon), id(font_medium));
+            draw_alert_zone(it, id(last_alert_icon).c_str(), id(last_header_text).c_str(), id(last_alert_text).c_str(), id(font_icon), id(font_medium));
           }
 
       # --- SIDE 4: UGENS KALENDER ---
       - id: page_cal_week
         lambda: |-
           it.fill(COLOR_OFF);
-          draw_header(it, id(last_alert_icon), id(last_alert_text), id(last_status_time), id(ha_time), id(font_emoji_small), id(font_calendar));
+          draw_header(it, id(last_alert_icon), id(last_header_text), id(last_status_time), id(ha_time), id(font_emoji_small), id(font_calendar));
           
           it.print(270, 120, id(font_emoji_medium), COLOR_ON, TextAlign::CENTER, "📅");
           auto tomorrow = ESPTime::from_epoch_local(id(ha_time).now().timestamp + 86400);
@@ -676,9 +701,9 @@ display:
           }
 
           if (id(power_down_request)) {
-            draw_alert_zone(it, "🏠", "Skal vi Sove nu?", id(font_icon), id(font_medium));
+            draw_alert_zone(it, "🏠", "Skal vi Sove?", "Godnat!", id(font_icon), id(font_medium));
           } else if (id(big_alert_active)) {
-            draw_alert_zone(it, id(last_alert_icon).c_str(), id(last_alert_text).c_str(), id(font_icon), id(font_medium));
+            draw_alert_zone(it, id(last_alert_icon).c_str(), id(last_header_text).c_str(), id(last_alert_text).c_str(), id(font_icon), id(font_medium));
           }
 
 

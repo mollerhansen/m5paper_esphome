@@ -20,7 +20,7 @@ house_power_down:
     - action: input_text.set_value
       data:
         entity_id: input_text.m5paper_status_text
-        value: "Slukker huset..."
+        value: "Godnat | Slukker huset..."
 
     # 2. Turn off lights in living room floor (Stue, Køkken, Bad)
     - action: light.turn_off
@@ -48,7 +48,7 @@ house_power_down:
     - action: input_text.set_value
       data:
         entity_id: input_text.m5paper_status_text
-        value: "Alt slukket. Godnat!"
+        value: "Alt slukket | Godnat!"
 ```
 
 ## Implementation Notes

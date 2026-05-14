@@ -30,7 +30,7 @@ action:
             target:
               entity_id: input_text.m5paper_status_text
             data:
-              value: "Luft ud! CO2 er høj"
+              value: "Høj CO2 | Luft ud!"
 
       # 2. PRIORITY: KÆLDERDØR LÅST OP EFTER KL 22
       - conditions:
@@ -50,7 +50,7 @@ action:
             target:
               entity_id: input_text.m5paper_status_text
             data:
-              value: "Husk at låse kælderdør"
+              value: "Kælderdør åben | Lås kælderdør"
 
       # DEFAULT: ALT ER OK
       - conditions: []

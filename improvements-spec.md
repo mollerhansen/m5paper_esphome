@@ -45,16 +45,36 @@ Stuen er en etage som består af Køkken, bad og stue. 1. sal består Af Georgs 
 ### 3.2 Tilføje lys styring i rum (PLANNED)
 Vi skal kunne justere lyset i de rum der har smart pøre med en touch kontrol knap (down-arrow, on/off,up-arrow)
 
-### 3.3 Tidsstempler i statusbaren (FIXED)
-- **Status**: Fixed in `display_helpers.h`.
-- **Change**: Added `strftime` to the header and appended the last update time to the status message.
+### 3.4 Status Message Refactoring (FIXED)
+Status messages are currently a single string (e.g., "Luft Ud! CO2 højt."). We want to split them into a **Primary Status** (Observation) and a **Call to Action (CTA)**.
+- **Status**: Fixed in `m5paper.yaml` and `display_helpers.h`.
+- **Change**: 
+  - Added `last_header_text` global.
+  - Updated `status_text` sensor lambda to split incoming string by `|` and trim whitespace.
+  - Redesigned `draw_alert_zone` (speech bubble) to display Icon, Observation, and CTA on separate lines.
+  - Removed timestamp from header status to save space.
+  - Refined "Klar" status to be blank and reset the icon to `🏠`.
+- **Primary Status**: Short, descriptive (e.g., "Høj CO2"). Displays in the **Status Bar** (header).
+- **Call to Action**: Instruction (e.g., "Luft ud!"). Displays in the **Alert Zone** (speech bubble).
+- **Format**: Uses a pipe separator `|` in the `status_text` entity from Home Assistant. 
+  - *Example*: `Høj CO2 | Luft ud!`
+  - *Fallback*: If no `|` is present, the whole string goes to both locations.
+
+## 4. Troubleshooting & UI Fixes
+
+### 4.1 Missing Icons and Alert Reliability
+- **Icons**: Some icons (like 🌬 for CO2) might not render if the font does not support them or if the string handling is incorrect.
+- **Alert Persistence**: Ensure alerts don't "stuck" if Home Assistant clears the status.
+- **Action**: Verify `font_emoji_small` and `font_icon` glyphs in `m5paper.yaml` cover all used emojis.
 
 ---
 
 ## Proposed Next Steps
 
-1. **Fix Pikachu Artifact (2.3)**: Clean up the last row of `pikachu_angry.h` to remove the black pixels.
-2. **Implement Room Control UI (3.1, 3.2)**: 
+1. **Implement Room Control UI (3.1, 3.2)**: 
    - Design a sub-page or overlay for heat/light control.
    - Use `touchscreen` regions to detect +/- and on/off.
    - Use `homeassistant.service` calls to update states in HA.
+2. **Missing Icons and Alert Reliability (4.1)**:
+   - Verify `font_emoji_small` and `font_icon` glyphs in `m5paper.yaml` cover all used emojis.
+   - Ensure alerts don't "stuck" if Home Assistant clears the status.

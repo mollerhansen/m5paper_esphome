@@ -1,6 +1,6 @@
 alias: "M5Stack: Opdater Kalender og Status"
 description: "Henter data fra calendar.familie og sender formateret tekst med linjeskift til M5Paper"
-mode: single
+mode: restart
 
 trigger:
   - platform: time_pattern

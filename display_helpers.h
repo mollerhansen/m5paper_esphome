@@ -30,10 +30,7 @@ void draw_header(display::Display &it, const std::string &icon, const std::strin
         it.print(10, 15, font_emoji, COLOR_ON, display::TextAlign::TOP_LEFT, icon.c_str());
     }
     
-    std::string s_text = (!message.empty() && message != "unknown") ? message : "Klar";
-    if (!update_time.empty() && s_text != "Klar") {
-        s_text += " " + update_time;
-    }
+    std::string s_text = (!message.empty() && message != "unknown") ? message : "";
     it.print(50, 15, font_text, COLOR_ON, display::TextAlign::TOP_LEFT, s_text.c_str());
     
     it.strftime(530, 15, font_text, COLOR_ON, display::TextAlign::TOP_RIGHT, "%d. %b  %H:%M", ha_time->now());
@@ -86,7 +83,7 @@ const uint16_t* select_pikachu(const std::string &icon) {
     return pikachu_happy;
 }
 
-void draw_alert_zone(display::Display &it, const char* icon, const char* message, display::BaseFont *font_emoji, display::BaseFont *font_text, const uint16_t* pika_sprite = nullptr) {
+void draw_alert_zone(display::Display &it, const char* icon, const char* observation, const char* cta, display::BaseFont *font_emoji, display::BaseFont *font_text, const uint16_t* pika_sprite = nullptr) {
     // If no sprite provided, try to select based on icon
     if (pika_sprite == nullptr) {
         pika_sprite = select_pikachu(icon);
@@ -110,25 +107,11 @@ void draw_alert_zone(display::Display &it, const char* icon, const char* message
     it.line(bubble_x + bubble_w, bubble_y + 210, bubble_x + bubble_w + 30, bubble_y + 200, COLOR_ON);
     it.line(bubble_x + bubble_w, bubble_y + 181, bubble_x + bubble_w, bubble_y + 209, COLOR_OFF);
 
-    // Text inside bubble
-    it.print(bubble_x + bubble_w/2, bubble_y + 30, font_emoji, COLOR_ON, display::TextAlign::TOP_CENTER, icon);
+    // Text inside bubble: Icon \n Observation \n CTA
+    it.print(bubble_x + bubble_w/2, bubble_y + 20, font_emoji, COLOR_ON, display::TextAlign::TOP_CENTER, icon);
     
-    std::string msg_str = message;
-    if (msg_str.length() > 20) {
-        size_t split_pos = msg_str.find(' ', msg_str.length() / 2 - 5);
-        if (split_pos == std::string::npos) split_pos = msg_str.find(' ');
-        
-        if (split_pos != std::string::npos) {
-            std::string line1 = msg_str.substr(0, split_pos);
-            std::string line2 = msg_str.substr(split_pos + 1);
-            it.print(bubble_x + bubble_w/2, bubble_y + 100, font_text, COLOR_ON, display::TextAlign::TOP_CENTER, line1.c_str());
-            it.print(bubble_x + bubble_w/2, bubble_y + 150, font_text, COLOR_ON, display::TextAlign::TOP_CENTER, line2.c_str());
-        } else {
-            it.print(bubble_x + bubble_w/2, bubble_y + 110, font_text, COLOR_ON, display::TextAlign::TOP_CENTER, message);
-        }
-    } else {
-        it.print(bubble_x + bubble_w/2, bubble_y + 110, font_text, COLOR_ON, display::TextAlign::TOP_CENTER, message);
-    }
+    it.print(bubble_x + bubble_w/2, bubble_y + 90, font_text, COLOR_ON, display::TextAlign::TOP_CENTER, observation);
+    it.print(bubble_x + bubble_w/2, bubble_y + 150, font_text, COLOR_ON, display::TextAlign::TOP_CENTER, cta);
 
     // Draw Pikachu (bottom right)
     draw_pikachu(it, 400, 780, pika_sprite, 96, 120);

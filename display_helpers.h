@@ -73,7 +73,7 @@ void draw_pikachu(display::Display &it, int x, int y, const uint16_t* sprite, in
 }
 
 const uint16_t* select_pikachu(const std::string &icon) {
-    if (icon == "🌬") return pikachu_informative;
+    if (icon == "🌬" || icon == "🪟") return pikachu_informative;
     if (icon == "🌙") return pikachu_sleep;
     if (icon == "✨") return pikachu_excited;
     if (icon == "☀" || icon == "🛋" || icon == "🏡") return pikachu_happy;

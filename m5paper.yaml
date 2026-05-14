@@ -75,12 +75,12 @@ font:
   - file: "gfonts://Noto Emoji"
     id: font_emoji_small
     size: 26
-    glyphs: "👕🧺🫧💧🔒🔓🔋🔌🌬🏠✨🌙☁☀⛅🌧🌨🌩🌫💨♥🍻🏡🍷🎂🎉🎁🚲🚗🚆🚛"
+    glyphs: "👕🧺🫧💧🔒🔓🔋🔌🌬🏠✨🌙☁☀⛅🌧🌨🌩🌫💨♥🍻🏡🍷🎂🎉🎁🚲🚗🚆🚛🪟"
 
   - file: "gfonts://Noto Emoji"
     id: font_emoji_medium
     size: 48
-    glyphs: "🛋🛏🏡📅👕🔓🌬🏠✨🌙☁☀⛅🌧🌨🌩🌫💨♥🍻"
+    glyphs: "🛋🛏🏡📅👕🔓🌬🏠✨🌙☁☀⛅🌧🌨🌩🌫💨♥🍻🪟"
   - file: "FreeSans.ttf"
     id: font_medium
     size: 48
@@ -94,7 +94,7 @@ font:
   - file: "gfonts://Noto Emoji"
     id: font_icon
     size: 55
-    glyphs: "☀☁⛅🌧🌨🌩🌙🌫🌬💨👕🔓🏠✨🏡"
+    glyphs: "☀☁⛅🌧🌨🌩🌙🌫🌬💨👕🔓🏠✨🏡🪟"
 
 time:
   - platform: homeassistant
@@ -180,7 +180,7 @@ script:
           id(big_alert_active) = true;
           id(last_header_text) = "Lufter ud";
           id(last_alert_text) = "Lufter ud i stuen";
-          id(last_alert_icon) = "🌬";
+          id(last_alert_icon) = "🪟";
       - component.update: m5paper_display
 
   - id: set_climate_temp
@@ -550,7 +550,7 @@ display:
 
           // Footer - Ventilate & CO2
           if (!id(big_alert_active) && !id(power_down_request)) {
-            draw_button(it, 20, 840, 260, 100, "🌬 Luft ud", id(font_medium));
+            draw_button(it, 20, 840, 260, 100, "🪟 Luft ud", id(font_medium));
             if (id(co2_level).has_state()) {
                it.printf(300, 875, id(font_calendar), COLOR_ON, TextAlign::TOP_LEFT, "CO2: %.0f ppm", id(co2_level).state);
             }

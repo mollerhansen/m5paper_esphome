@@ -25,7 +25,7 @@ action:
             target:
               entity_id: input_text.m5paper_status_icon
             data:
-              value: "🌬"
+              value: "🪟"
           - service: input_text.set_value
             target:
               entity_id: input_text.m5paper_status_text

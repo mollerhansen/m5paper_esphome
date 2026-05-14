@@ -60,6 +60,15 @@ Status messages are currently a single string (e.g., "Luft Ud! CO2 højt."). We 
   - *Example*: `Høj CO2 | Luft ud!`
   - *Fallback*: If no `|` is present, the whole string goes to both locations.
 
+### 3.5 CO2 Icon Change (FIXED)
+Change the icon used for CO2 alerts and the ventilate button from "🌬" (blowing) to "🪟" (window) to better represent the action of opening a window.
+- **Status**: Fixed in `m5paper.yaml`, `display_helpers.h`, and `home_assistant_config/update_status.yaml`.
+- **Action**: 
+  - Updated `m5paper.yaml` to include the `🪟` glyph in `font_emoji_small`, `font_emoji_medium`, and `font_icon`.
+  - Updated `run_ventilate_stuen` script and UI button in `m5paper.yaml` to use `🪟`.
+  - Updated `select_pikachu` in `display_helpers.h` to recognize `🪟` (returns informative Pikachu).
+  - Updated Home Assistant `update_status.yaml` to send `🪟` for CO2 alerts.
+
 ## 4. Troubleshooting & UI Fixes
 
 ### 4.1 Missing Icons and Alert Reliability

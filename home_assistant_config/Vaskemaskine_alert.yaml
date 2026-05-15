@@ -1,0 +1,34 @@
+alias: Vaskemaskine Alert
+description: ""
+triggers:
+  - type: power
+    device_id: e928d884596fe39360a2da3a7da15fec
+    entity_id: a8ca9713e50dcc46ef84eaecd2cfc141
+    domain: sensor
+    trigger: device
+    below: 2
+conditions: []
+actions:
+  - action: notify.mobile_app_pixel_7
+    metadata: {}
+    data:
+      message: Tøjvasken er færdig
+      title: Vaskemaskine
+  - action: notify.mobile_app_pixel_9a
+    metadata: {}
+    data:
+      message: Tøjvasken er færdig
+      title: Vaskemaskinen
+  - action: input_text.set_value
+    metadata: {}
+    data:
+      value: "Vask Slut | Tøm Maskinen!"
+    target:
+      entity_id: input_text.m5paper_status_text
+  - action: input_text.set_value
+    metadata: {}
+    target:
+      entity_id: input_text.m5paper_status_icon
+    data:
+      value: 👕
+mode: single

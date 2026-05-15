@@ -32,7 +32,24 @@ action:
             data:
               value: "Høj CO2 | Luft ud!"
 
-      # 2. PRIORITY: KÆLDERDØR LÅST OP EFTER KL 22
+      # 2. PRIORITY: VASKEMASKINE FÆRDIG
+      - conditions:
+          - condition: numeric_state
+            entity_id: sensor.vaskemaskine_power
+            below: 2
+        sequence:
+          - service: input_text.set_value
+            target:
+              entity_id: input_text.m5paper_status_icon
+            data:
+              value: "👕"
+          - service: input_text.set_value
+            target:
+              entity_id: input_text.m5paper_status_text
+            data:
+              value: "Vask Slut | Tøm Vaskemaskinen!"
+
+      # 3. PRIORITY: KÆLDERDØR LÅST OP EFTER KL 22
       - conditions:
           - condition: time
             after: "22:00:00"

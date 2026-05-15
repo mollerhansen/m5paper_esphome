@@ -77,13 +77,11 @@ Change the icon used for CO2 alerts and the ventilate button from "🌬" (blowin
 - **Action**: Verify `font_emoji_small` and `font_icon` glyphs in `m5paper.yaml` cover all used emojis.
 
 ---
+### 4.2 Vaskemaskine alert (FIXED)
 
-## Proposed Next Steps
-
-1. **Implement Room Control UI (3.1, 3.2)**: 
-   - Design a sub-page or overlay for heat/light control.
-   - Use `touchscreen` regions to detect +/- and on/off.
-   - Use `homeassistant.service` calls to update states in HA.
-2. **Missing Icons and Alert Reliability (4.1)**:
-   - Verify `font_emoji_small` and `font_icon` glyphs in `m5paper.yaml` cover all used emojis.
-   - Ensure alerts don't "stuck" if Home Assistant clears the status.
+Vask slut alert is repeated twice in the alert call out and has a house icon in the status and alert. The icon should be a T-shirt. Observation is Vask Slut. Call to Action is Tøm Vaskemaskinen! and it should be excited pikachu giving the message.
+- **Status**: Fixed in `home_assistant_config/update_status.yaml` and `display_helpers.h`.
+- **Change**: 
+  - Added T-shirt icon 👕 in `update_status.yaml` alert logic.
+  - Updated `select_pikachu` in `display_helpers.h` to return `pikachu_excited` for the 👕 icon.
+ 

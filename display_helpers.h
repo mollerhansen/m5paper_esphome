@@ -117,6 +117,13 @@ void draw_alert_zone(display::Display &it, const char* icon, const char* observa
     draw_pikachu(it, 400, 780, pika_sprite, 96, 120);
 }
 
+void draw_sleeping_pikachu(display::Display &it) {
+    // Bottom center: 540/2 - 96/2 = 222
+    // Bottom: 960. Pikachu height 120. 
+    // y = 840
+    draw_pikachu(it, 222, 840, pikachu_sleep, PIKA_WIDTH_SLEEP, PIKA_HEIGHT_SLEEP);
+}
+
 void draw_parked_alert(display::Display &it, int x, int y, const char* icon, display::BaseFont *font_emoji) {
     it.print(x, y, font_emoji, COLOR_ON, display::TextAlign::TOP_LEFT, icon);
 }

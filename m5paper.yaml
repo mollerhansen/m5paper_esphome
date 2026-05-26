@@ -346,7 +346,7 @@ touchscreen:
           // --- Climate Controls (Only on page_stuen) ---
           if (id(m5paper_display).get_active_page() == id(page_stuen)) {
             // Ventilate Button (Bottom left)
-            if (touch.y > 800 && touch.x < 300) {
+            if (touch.y > 800 && touch.x < 250) {
               id(run_ventilate_stuen).execute();
               return;
             }
@@ -533,6 +533,8 @@ display:
             draw_alert_zone(it, "🏠", "Skal vi Sove?", "Godnat!", id(font_icon), id(font_medium));
           } else if (id(big_alert_active)) {
             draw_alert_zone(it, id(last_alert_icon).c_str(), id(last_header_text).c_str(), id(last_alert_text).c_str(), id(font_icon), id(font_medium));
+          } else {
+            draw_sleeping_pikachu(it);
           }
 
       # --- SIDE 2: STUEN ---
@@ -550,9 +552,9 @@ display:
 
           // Footer - Ventilate & CO2
           if (!id(big_alert_active) && !id(power_down_request)) {
-            draw_button(it, 20, 840, 260, 100, "🪟 Luft ud", id(font_medium));
+            draw_button(it, 20, 840, 200, 100, "🪟 Luft ud", id(font_medium));
             if (id(co2_level).has_state()) {
-               it.printf(300, 875, id(font_calendar), COLOR_ON, TextAlign::TOP_LEFT, "CO2: %.0f ppm", id(co2_level).state);
+               it.printf(330, 875, id(font_calendar), COLOR_ON, TextAlign::TOP_LEFT, "CO2: %.0f ppm", id(co2_level).state);
             }
           }
 
@@ -560,6 +562,8 @@ display:
             draw_alert_zone(it, "🏠", "Skal vi Sove?", "Godnat!", id(font_icon), id(font_medium));
           } else if (id(big_alert_active)) {
             draw_alert_zone(it, id(last_alert_icon).c_str(), id(last_header_text).c_str(), id(last_alert_text).c_str(), id(font_icon), id(font_medium));
+          } else {
+            draw_sleeping_pikachu(it);
           }
 
       # --- SIDE 3: UDENFOR + I DAG ---
@@ -675,6 +679,8 @@ display:
             draw_alert_zone(it, "🏠", "Skal vi Sove?", "Godnat!", id(font_icon), id(font_medium));
           } else if (id(big_alert_active)) {
             draw_alert_zone(it, id(last_alert_icon).c_str(), id(last_header_text).c_str(), id(last_alert_text).c_str(), id(font_icon), id(font_medium));
+          } else {
+            draw_sleeping_pikachu(it);
           }
 
       # --- SIDE 4: UGENS KALENDER ---
@@ -704,6 +710,8 @@ display:
             draw_alert_zone(it, "🏠", "Skal vi Sove?", "Godnat!", id(font_icon), id(font_medium));
           } else if (id(big_alert_active)) {
             draw_alert_zone(it, id(last_alert_icon).c_str(), id(last_header_text).c_str(), id(last_alert_text).c_str(), id(font_icon), id(font_medium));
+          } else {
+            draw_sleeping_pikachu(it);
           }
 
 

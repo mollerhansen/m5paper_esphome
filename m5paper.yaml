@@ -39,14 +39,14 @@ logger:
 api:
   id: ha_api
   encryption:
-    key: "N2YxMzRhYzY4YjVkMzU1ZTQ5Mzg3MmExOTI4MzY0ZGU="
+    key: !secret api_encryption_key
 
 ota:
   - platform: esphome
 
 wifi:
-  ssid: "Yellow Submarine"
-  password: "Hansen28102017"
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
 
 psram:
 

@@ -17,4 +17,4 @@ input_text:
   m5paper_cal_week:
     name: "M5Stack Kalender Uge"
     icon: mdi:calendar-week
-    max: 1000
+    max: 255

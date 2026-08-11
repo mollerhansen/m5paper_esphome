@@ -10,7 +10,7 @@ trigger:
 
 action:
   # 1. HENT DAGENS AFTALER (Resten af i dag)
-  - service: calendar.get_events
+  - action: calendar.get_events
     target:
       entity_id: calendar.familie
     data:
@@ -18,29 +18,45 @@ action:
       end_date_time: "{{ today_at('23:59:59') }}"
     response_variable: agenda_idag
 
-  - service: input_text.set_value
+  - action: input_text.set_value
     target:
       entity_id: input_text.m5paper_cal_today
     data:
       value: >
-        {% set agenda = agenda_idag.get('calendar.familie', {}) %}
+        {% set agenda = (agenda_idag.values() | list | first) if agenda_idag is mapping and agenda_idag | length > 0 else {} %}
         {% set all_events = agenda.get('events', []) %}
-        {# Filter to only show events that haven't ended yet #}
-        {% set events = all_events | selectattr('end', 'greaterthan', now().isoformat()) | list %}
+        {% set current_ts = as_timestamp(now()) %}
+        {% set ns_filter = namespace(valid=[]) %}
+        {% for event in all_events %}
+          {% set end_ts = as_timestamp(event.end) %}
+          {% if end_ts is not none and end_ts > current_ts %}
+            {% set ns_filter.valid = ns_filter.valid + [event] %}
+          {% endif %}
+        {% endfor %}
+        {% set events = ns_filter.valid %}
         
         {% if events | length == 0 %}
           Ingen flere aftaler i dag
         {% else %}
-          {% set ns = namespace(lines=[]) %}
-          {% for event in events[:3] %}
-            {% set start = as_timestamp(event.start) | timestamp_custom('%H:%M') %}
-            {% set ns.lines = ns.lines + [start ~ ' ' ~ event.summary] %}
+          {% set ns = namespace(lines=[], total_len=0) %}
+          {% for event in events %}
+            {% if event.start is string and 'T' not in event.start %}
+              {% set start_str = 'Hele dagen' %}
+            {% else %}
+              {% set start_str = as_timestamp(event.start) | timestamp_custom('%H:%M') %}
+            {% endif %}
+            {% set summary = event.summary | truncate(30, true, '...') %}
+            {% set line = start_str ~ ' ' ~ summary %}
+            {% if (ns.total_len + line | length + 1) <= 245 and ns.lines | length < 4 %}
+              {% set ns.lines = ns.lines + [line] %}
+              {% set ns.total_len = ns.total_len + line | length + 1 %}
+            {% endif %}
           {% endfor %}
-          {{ ns.lines | join('|') }}
+          {{ ns.lines | join('|') if ns.lines | length > 0 else 'Ingen flere aftaler i dag' }}
         {% endif %}
 
   # 2. HENT UGENS AFTALER (Næste 5 dage, startende fra i morgen)
-  - service: calendar.get_events
+  - action: calendar.get_events
     target:
       entity_id: calendar.familie
     data:
@@ -49,23 +65,29 @@ action:
         days: 5
     response_variable: agenda_uge
 
-  - service: input_text.set_value
+  - action: input_text.set_value
     target:
       entity_id: input_text.m5paper_cal_week
     data:
       value: >
-        {% set agenda = agenda_uge.get('calendar.familie', {}) %}
+        {% set agenda = (agenda_uge.values() | list | first) if agenda_uge is mapping and agenda_uge | length > 0 else {} %}
         {% set events = agenda.get('events', []) %}
         {% if events | length == 0 %}
           Ingen aftaler de næste 5 dage
         {% else %}
-          {% set ns = namespace(lines=[]) %}
+          {% set ns = namespace(lines=[], total_len=0) %}
           {% set dage = {'Mon': 'Man', 'Tue': 'Tir', 'Wed': 'Ons', 'Thu': 'Tor', 'Fri': 'Fre', 'Sat': 'Lør', 'Sun': 'Søn'} %}
-          {% for event in events[:8] %}
+          {% for event in events %}
             {% set d_eng = as_timestamp(event.start) | timestamp_custom('%a') %}
             {% set d_dk = dage.get(d_eng, d_eng) %}
             {% set dato = as_timestamp(event.start) | timestamp_custom('%d/%m') %}
-            {% set ns.lines = ns.lines + [d_dk ~ ' ' ~ dato ~ ': ' ~ event.summary] %}
+            {% set summary = event.summary | truncate(25, true, '...') %}
+            {% set line = d_dk ~ ' ' ~ dato ~ ': ' ~ summary %}
+            {% if (ns.total_len + line | length + 1) <= 245 and ns.lines | length < 6 %}
+              {% set ns.lines = ns.lines + [line] %}
+              {% set ns.total_len = ns.total_len + line | length + 1 %}
+            {% endif %}
           {% endfor %}
-          {{ ns.lines | join('|') }}
+          {{ ns.lines | join('|') if ns.lines | length > 0 else 'Ingen aftaler de næste 5 dage' }}
         {% endif %}
+

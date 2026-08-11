@@ -417,6 +417,13 @@ text_sensor:
   - platform: homeassistant
     entity_id: input_text.m5paper_status_icon
     id: status_icon
+    on_value:
+      then:
+        - lambda: |-
+            id(last_alert_icon) = x;
+            if (id(big_alert_active)) {
+              id(m5paper_display).update();
+            }
   - platform: homeassistant
     entity_id: input_text.m5paper_status_text
     id: status_text

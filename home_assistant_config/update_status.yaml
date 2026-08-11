@@ -9,7 +9,7 @@ trigger:
   - platform: state
     entity_id: 
       - sensor.living_room_carbon_dioxide
-      - sensor.kaelderdor_operator
+      - lock.kaelderdor
   - platform: time
     at: "22:00:00"
 
@@ -21,32 +21,32 @@ action:
             entity_id: sensor.living_room_carbon_dioxide
             above: 1200
         sequence:
-          - service: input_text.set_value
+          - action: input_text.set_value
             target:
               entity_id: input_text.m5paper_status_icon
             data:
               value: "🪟"
-          - service: input_text.set_value
+          - action: input_text.set_value
             target:
               entity_id: input_text.m5paper_status_text
             data:
               value: "Høj CO2 | Luft ud!"
 
-      # 2. PRIORITY: KÆLDERDØR LÅST OP EFTER KL 22
+      # 2. PRIORITY: KÆLDERDØR LÅST OP OM NATTEN (KL 22-06)
       - conditions:
           - condition: time
             after: "22:00:00"
             before: "06:00:00"
           - condition: state
-            entity_id: sensor.kaelderdor_operator
+            entity_id: lock.kaelderdor
             state: "unlocked"
         sequence:
-          - service: input_text.set_value
+          - action: input_text.set_value
             target:
               entity_id: input_text.m5paper_status_icon
             data:
               value: "🔓"
-          - service: input_text.set_value
+          - action: input_text.set_value
             target:
               entity_id: input_text.m5paper_status_text
             data:
@@ -59,12 +59,12 @@ action:
             above: 2
             below: 10
         sequence:
-          - service: input_text.set_value
+          - action: input_text.set_value
             target:
               entity_id: input_text.m5paper_status_icon
             data:
               value: "👕"
-          - service: input_text.set_value
+          - action: input_text.set_value
             target:
               entity_id: input_text.m5paper_status_text
             data:
@@ -73,12 +73,12 @@ action:
       # DEFAULT: ALT ER OK
       - conditions: []
         sequence:
-          - service: input_text.set_value
+          - action: input_text.set_value
             target:
               entity_id: input_text.m5paper_status_icon
             data:
               value: "🏠"
-          - service: input_text.set_value
+          - action: input_text.set_value
             target:
               entity_id: input_text.m5paper_status_text
             data:

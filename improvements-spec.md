@@ -4,7 +4,7 @@ This document outlines the identified issues and proposed architectural/function
 
 ## 1. Identified Issues & Bugs
 
-### 1.1 vasker hele tiden (DONE)
+### 1.1 vasker hele tiden
 
 Jeg tror der er en fejl, som gør at natlåsen den giver vaskealarmen i stedet for Godnat låse alarmen.
 
@@ -16,7 +16,7 @@ Jeg tror der er en fejl, som gør at natlåsen den giver vaskealarmen i stedet f
 
 Jeg ved ikke om det nogle side har været tilfældet men når min natlås rutine køre på timeren kl 22 vises der ikke en alert på skærmen. Er der noget jeg skal opdatere i min rutine i HA?
 
-### 1.3 Calendar is still not updating (DONE)
+### 1.3 Calendar is still not updating
 
 Both the week view and the day view is not correctly updating. We have previously tried to troubleshoot the gcal integration on Home Assist. 
 
@@ -32,6 +32,20 @@ Both the week view and the day view is not correctly updating. We have previousl
 
 Vejrudsigten skal ikke vise sovende, sovende skal først komme igen når vejrudsigten går væk.
 
+### 1.5 Manglende Emoji-tegn i skrifttyper (Emoji Glyphs)
+
+- **`font_medium` (FreeSans.ttf)** indeholder ikke emojier. Knappen `"🪟 Luft ud"` på Stue-siden viser emojien `🪟` som manglende tegn.
+- **`font_icon` (Noto Emoji str. 55)** mangler glyphs for ikoner som `🔒` (låst dør), `🔋` (batteri), `🧺` (vasketøj), `🫧` (sæbebobler), `💧` (vand leak). Hvis disse sendes som status-ikon, tegnes et tomt felt.
+- **`font_calendar` (OpenSansEmoji.ttf str. 32)** indeholder kun et begrænset udvalg af emojier (`♥🍻🏡🚛🍷🎉🎁🎂`). Almindelige kalender-emojier (`📅`, `🚗`, `⚽`, `🎓`, `🏥`, `🛒`, `✈️`, `🔑`) mangler.
+
+### 1.6 Header tekst-overlapning ved lange status-beskeder
+
+I `draw_header` ([`display_helpers.h`](file:///home/david/Documents/CodeProjects/m5paper_esphome/display_helpers.h)) starter statusbeskeden ved `x=50`, mens ur-stemplet er placeret højrejusteret ved `x=530`. Hvis en statusbesked fra Home Assistant er lang (f.eks. `"Kælderdør åben | Lås kælderdør"`), skrives den hen over uret.
+
+### 1.7 Overfyldt Footer på Stue-siden (page_stuen)
+
+På Stue-siden placeres "Luft ud"-knappen (`x=20..220`), den sovende Pikachu (`x=222..318`) og CO2-målingen (`x=330..530`) tæt sammen på samme linje (`y=840`). Højrejustering og afstand bør optimeres for at forhindre overlap.
+
 ## 2. Improvements
 
 Stuen er en etage som består af Køkken, bad og stue. 1. sal består Af Georgs værelse, Eskes værelse, Soveværelse og Badeværelse.
@@ -39,7 +53,7 @@ Stuen er en etage som består af Køkken, bad og stue. 1. sal består Af Georgs 
 ### 2.1 Tilføje lys styring i rum (PLANNED)
 Vi skal kunne justere lyset i de rum der har smart pøre med en touch kontrol knap (down-arrow, on/off,up-arrow). Vi skal finde ud af at skifte mellem lys og temperatur styrings kontrollen. Måske ved en lys/radiator ikon switch i toppen af etage panelet.
 
-### 2.2 Pikachu sover når der intet sker (DONE)
+### 2.2 Pikachu sover når der intet sker
 
 Lad os lade pikachu ligge og sove i bunden af skærmen på midten når der ikke sker noget. 
 
